@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="04.08.2026 13:06:33"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="04.08.2026 14:28:49"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 04/08/2026 13:06:33
-  DATA = 0001FF15025417111A08040D020F985300001A00000000000000000000000000
+  DATE = 04/08/2026 14:28:49
+  DATA = 0001FF15026017AF1A08040E1C264A8600001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
   PLCTYPE = 42
@@ -201,6 +201,11 @@ VAR CONSTANT
   MidChar: STRING := |;
   UpArrowChar: STRING := ^;
   DownArrowChar: STRING := v;
+END_VAR
+
+VAR 
+  WriteParam: MC_WriteParameter_16;
+  ParamInit: INT := 0;
 END_VAR
 
 (* @Displayformat *)
@@ -453,6 +458,16 @@ EndChar=0
 MidChar=0
 UpArrowChar=0
 DownArrowChar=0
+WriteParam.EXECUTE=0
+WriteParam.PARAMETERNUMBER=0
+WriteParam.PARAMETERINDEX=0
+WriteParam.VALUE=0
+WriteParam.DONE=0
+WriteParam.ERROR=0
+WriteParam.ERRORID=0
+WriteParam.BUSY=0
+WriteParam.RAMONLY=0
+ParamInit=0
 *)
 
 (* @Debuglist *)
@@ -474,21 +489,21 @@ DownArrowChar=0
  Date:          20/07/2026
 
  Program Sections
- 1. Jam detection     
- 2. Loading parameters
- 3. Parameter box display and information
- 4. State machine
- 5. Homing 
- 6. Movement, power and current position assignment saving
+ 1. Track limit detection
+ 2. Jam detection     
+ 3. Loading parameters
+ 4. Parameter box display and information
+ 5. State machine
+ 6. Fault clearing
+ 7. Homing 
+ 8. Movement, power and current position assignment saving
 
 
  Revision history:
      1.0  20/07/2026  Initial release.
 ========================================================================================================================
 
-
-
-REQUIRED TO ENABLE AUTO HOMING:
+PARAMETER OVERWRITES:
 P480[09] = Reference point [23]
 P481[09] = Output via PLC  [40]
 
@@ -531,7 +546,7 @@ DI5Edge(CLK:=_5_State_digital_input.4);
 (*Bottom sensor*)
 DI6Edge(CLK:=_5_State_digital_input.5);
 
-(*0. -------Track Limit detection-------*)
+(*1. -------Track Limit detection-------*)
 IF NOT IsHoming THEN
         (*Exceeded Top*)
         IF DI5Edge.Q THEN
@@ -544,7 +559,7 @@ IF NOT IsHoming THEN
         END_IF;
 END_IF; 
 
-(*1. ----------Jam detection------------*)                                                                                          
+(*2. ----------Jam detection------------*)                                                                                          
 IF ((_90_Actual_torque_current > TorqueLimitUp) OR (_90_Actual_torque_current < -TorqueLimitDown)) AND NOT IsHoming AND Power THEN
         
         (*Jamming when opening*)
@@ -573,13 +588,14 @@ IF ((_90_Actual_torque_current > TorqueLimitUp) OR (_90_Actual_torque_current < 
         END_IF;          
 END_IF;
 
-(*2. ----------Loading parameters----------*)
+(*3. ----------Loading parameters----------*)
 IF NOT Init THEN
         (*Loading position*)
         EndPos := _126_PLC_P356_2;
         TargetPos := EndPos;
         MoveExecute := FALSE;
         Power := FALSE;
+        
 
         (*Restores position from memory*)
         IF (_125_PLC_P356_1 > FloorDeadZone) AND (_125_PLC_P356_1 < (EndPos - TopDeadZone)) THEN
@@ -588,6 +604,9 @@ IF NOT Init THEN
                         POSITION := _125_PLC_P356_1
                 );                
         END_IF;
+        
+        (*Sets the parameters to enable autohoming*)
+        ParamInit := ParamInit + 1;
         
         (*Other presets*)
         RestTime :=  _127_PLC_P356_3;
@@ -619,8 +638,38 @@ ELSE
         END_IF;
 END_IF;
 
-(*3. ----------Display and information------------*)
+(*Writes correct parameters upon initialisation*)
+CASE ParamInit OF
+        1: 
+                WriteParam(
+                        EXECUTE := TRUE,
+                        PARAMETERNUMBER := 480,
+                        PARAMETERINDEX := 8,
+                        VALUE := 23,
+                        RAMONLY := 0        
+                );
+                
+                IF WriteParam.Done THEN
+                        ParamInit := ParamInit + 1;
+                        WriteParam(EXECUTE:=FALSE);
+                END_IF;
+                
+        2:
+                WriteParam(
+                        EXECUTE := TRUE,
+                        PARAMETERNUMBER := 481,
+                        PARAMETERINDEX := 8,
+                        VALUE := 40,
+                        RAMONLY := 0        
+                );
+                
+                IF WriteParam.Done THEN
+                        ParamInit := ParamInit + 1;
+                        WriteParam(EXECUTE:=FALSE);
+                END_IF;
+END_CASE;
 
+(*4. ----------Display and information------------*)
 
 (*Defines moving from the running page to the parameter pages.*)
 LeftEdge(CLK:=_72_Parameterbox_key_state.7);
@@ -1047,7 +1096,7 @@ IF SavePar16.Done OR SavePar16.Error OR SavePar32.Done OR SavePar32.Error THEN
 END_IF;
 
 
-(*4. ----------Drive state machine------------*)
+(*5. ----------Drive state machine------------*)
 CASE State OF   
         0: (*Homing*)
                 IsBlocked := FALSE;                    
@@ -1058,9 +1107,7 @@ CASE State OF
                 TorqueEdge(CLK:=IsBlocked);
                 
                 
-
                 CASE HomingState OF 
-                        
                         00: (*Homing begins upwards in the positive direction*)
                                 IF ((DI5Edge.Q) OR ((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) 
                                 OR (TorqueEdge.Q AND (_90_Actual_torque_current > 0))) 
@@ -1221,6 +1268,7 @@ CASE State OF
                 END_IF;
 END_CASE;
 
+(*6. -------------Fault clearing---------------*)
 IF _72_Parameterbox_key_state.1 THEN
         _110_ErrorFlags.0 := FALSE;
         _110_ErrorFlags.1 := FALSE;
@@ -1243,7 +1291,7 @@ END_IF;
 
 FB_Reset(EXECUTE := _72_Parameterbox_key_state.1);
  
-(*5. -----------Homing handling--------------*)
+(*7. -----------Homing handling--------------*)
 IF (_72_Parameterbox_key_state.0  AND _72_Parameterbox_key_state.5 AND IsParBoxOn)
 AND (State = 1) AND (_88_Current_speed = 0) THEN
         Power := TRUE;
@@ -1272,7 +1320,7 @@ IF FB_Home.Error THEN
         State := 1;
 END_IF;
 
-(*6. -----------Movement, power and current position saving----------*)
+(*8. -----------Movement, power and current position saving----------*)
 IF Power THEN
         FB_Power(ENABLE:=TRUE);
 ELSE
@@ -1299,4 +1347,4 @@ IF FB_Power.Status THEN
         
         WritePosExecute := TRUE;
 END_IF;
-]]></Program><Checksum>A4517B1EB0C80D150856967CAB2606FA12CD3F53B5E433640F687522</Checksum></PLCFile></NordCon>
+]]></Program><Checksum>8445AC2EBC4F389E542DAA53A7EC06059F03ED199FC7B6512D35B2A4</Checksum></PLCFile></NordCon>
