@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="04.08.2026 15:39:27"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="04.08.2026 16:40:54"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 04/08/2026 15:39:27
-  DATA = 0001FF15026017A31A08040F2426335700001A00000000000000000000000000
+  DATE = 04/08/2026 16:40:54
+  DATA = 0001FF15026017A71A08040F272908BC00001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
   PLCTYPE = 42
@@ -480,13 +480,44 @@ ParamInit=0
 
 (* @Program *)
 (*
+
+        ██████╗  ██████╗ ██╗     ██╗     ███████╗██████╗     ██████╗  ██████╗  ██████╗ ██████╗
+        ██╔══██╗██╔═══██╗██║     ██║     ██╔════╝██╔══██╗    ██╔══██╗██╔═══██╗██╔═══██╗██╔══██╗
+        ██████╔╝██║   ██║██║     ██║     █████╗  ██████╔╝    ██║  ██║██║   ██║██║   ██║██████╔╝
+        ██╔══██╗██║   ██║██║     ██║     ██╔══╝  ██╔══██╗    ██║  ██║██║   ██║██║   ██║██╔══██╗
+        ██║  ██║╚██████╔╝███████╗███████╗███████╗██║  ██║    ██████╔╝╚██████╔╝╚██████╔╝██║  ██║
+        ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝    ╚═════╝  ╚═════╝  ╚═════╝ ╚═╝  ╚═╝
+        
+        ██████╗ ███████╗███╗   ███╗ ██████╗     ██████╗ ██████╗  ██████╗  ██████╗ ██████╗  █████╗ ███╗   ███╗
+        ██╔══██╗██╔════╝████╗ ████║██╔═══██╗    ██╔══██╗██╔══██╗██╔═══██╗██╔════╝ ██╔══██╗██╔══██╗████╗ ████║
+        ██║  ██║█████╗  ██╔████╔██║██║   ██║    ██████╔╝██████╔╝██║   ██║██║  ███╗██████╔╝███████║██╔████╔██║
+        ██║  ██║██╔══╝  ██║╚██╔╝██║██║   ██║    ██╔═══╝ ██╔══██╗██║   ██║██║   ██║██╔══██╗██╔══██║██║╚██╔╝██║
+        ██████╔╝███████╗██║ ╚═╝ ██║╚██████╔╝    ██║     ██║  ██║╚██████╔╝╚██████╔╝██║  ██║██║  ██║██║ ╚═╝ ██║
+        ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚═════╝     ╚═╝     ╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
+        
+        
+                                  ┌──────────────────────────────┐
+                                  │▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│
+                                  │──────────────────────────────│
+                                  │▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│
+                                  │──────────────────────────────│
+                                  │▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│
+                                  │──────────────────────────────│
+                                  │                              │
+                                  │                              │
+                                  └─-──────────────────────────-─┘
+                                   \                              \
+                                    \                              \
+                                            
+                            POSITION RECOVERY • HOMING • JAM CLEARING • HMI INTERFACE
+
 ========================================================================================================================
  Project:       Roller Door PLC Program
  Description:   Automatic opening and closing with position control,
                 jam detection, jam clearing, homing and PAR-5 HMI supported
  Author:        Max Placidi
  Version:       1.0
- Date:          20/07/2026
+ Date:          04/08/2026
 
  Program Sections
  1. Track limit detection
@@ -498,9 +529,6 @@ ParamInit=0
  7. Homing 
  8. Movement, power and current position assignment saving
 
-
- Revision history:
-     1.0  20/07/2026  Initial release.
 ========================================================================================================================
 
 PARAMETER OVERWRITES:
@@ -534,9 +562,12 @@ DI6 OR (Parameter box ok + Parameter box on): Initiate homing
 
 ERRORS:
 E23: Max jam clearing attempts reached.
+========================================================================================================================*)
 
+(* *************************************************************** *)
+(*                          MAIN PROGRAM                          *)
+(* *************************************************************** *))
 
-*)
 
 DI2Edge(CLK:=_5_State_digital_input.1);
 
@@ -559,7 +590,7 @@ IF NOT IsHoming THEN
         END_IF;
 END_IF; 
 
-(*2. ----------Jam detection------------*)                                                                                          
+(*2. ------------------------Jam detection-----------------------------*)                                                                                          
 IF ((_90_Actual_torque_current > TorqueLimitUp) OR (_90_Actual_torque_current < -TorqueLimitDown)) AND NOT IsHoming AND Power THEN
         
         (*Jamming when opening*)
@@ -588,7 +619,7 @@ IF ((_90_Actual_torque_current > TorqueLimitUp) OR (_90_Actual_torque_current < 
         END_IF;          
 END_IF;
 
-(*3. ----------Loading parameters----------*)
+(*3. --------------------Loading parameters---------------------*)
 IF NOT Init THEN
         (*Loading position*)
         EndPos := _126_PLC_P356_2;
@@ -669,7 +700,7 @@ CASE ParamInit OF
                 END_IF;
 END_CASE;
 
-(*4. ----------Display and information------------*)
+(*4. ----------------------------Display and information--------------------------------*)
 
 (*Defines moving from the running page to the parameter pages.*)
 LeftEdge(CLK:=_72_Parameterbox_key_state.7);
@@ -1096,7 +1127,7 @@ IF SavePar16.Done OR SavePar16.Error OR SavePar32.Done OR SavePar32.Error THEN
 END_IF;
 
 
-(*5. ----------Drive state machine------------*)
+(*5. -----------------------------Drive state machine------------------------------*)
 CASE State OF   
         0: (*Homing*)
                 IsBlocked := FALSE;                    
@@ -1109,7 +1140,7 @@ CASE State OF
                 
                 CASE HomingState OF 
                         00: (*Homing begins upwards in the positive direction*)
-                                IF ((DI5Edge.Q) OR ((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) 
+                                IF (((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) 
                                 OR (TorqueEdge.Q AND (_90_Actual_torque_current > 0))) 
                                 AND (_88_Current_Speed >= 0) THEN
                                         _39_PLC_set_digital_output_bus.8 := TRUE;
@@ -1268,7 +1299,7 @@ CASE State OF
                 END_IF;
 END_CASE;
 
-(*6. -------------Fault clearing---------------*)
+(*6. ------------------------------Fault clearing-----------------------------------*)
 IF _72_Parameterbox_key_state.1 THEN
         _110_ErrorFlags.0 := FALSE;
         _110_ErrorFlags.1 := FALSE;
@@ -1291,7 +1322,7 @@ END_IF;
 
 FB_Reset(EXECUTE := _72_Parameterbox_key_state.1);
  
-(*7. -----------Homing handling--------------*)
+(*7. ------------------------------Homing handling--------------------------------------*)
 IF ((_72_Parameterbox_key_state.0  AND _72_Parameterbox_key_state.5 AND IsParBoxOn))
 AND (State = 1) AND (_88_Current_speed = 0) THEN
         Power := TRUE;
@@ -1320,7 +1351,7 @@ IF FB_Home.Error THEN
         State := 1;
 END_IF;
 
-(*8. -----------Movement, power and current position saving----------*)
+(*8. -----------------------------Movement, power and current position saving------------------------*)
 IF Power THEN
         FB_Power(ENABLE:=TRUE);
 ELSE
@@ -1347,4 +1378,4 @@ IF FB_Power.Status THEN
         
         WritePosExecute := TRUE;
 END_IF;
-]]></Program><Checksum>44FEA4AA60DCBACD1EC5520A27014DBB8ED4D468724B949877552C3B</Checksum></PLCFile></NordCon>
+]]></Program><Checksum>917461F7FFBF2BD699191702FED93861AC182F380CE5D8FE420C5992</Checksum></PLCFile></NordCon>
