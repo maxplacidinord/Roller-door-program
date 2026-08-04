@@ -1,4 +1,4 @@
-### Roller door PLC program
+# Roller door PLC program
 
 A demonstration roller-door control program written in the **NORDCON Structured Text dialect** for execution on a compatible NORD drive PLC.
 
