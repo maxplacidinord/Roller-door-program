@@ -1,11 +1,11 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="04.08.2026 12:46:50"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="04.08.2026 13:06:33"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 04/08/2026 12:46:50
-  DATA = 0001FF15025417021A08040C2E0262D900001A00000000000000000000000000
-  PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D2720202020202020494E495449414C4953494E472E2E2E202020202020
+  DATE = 04/08/2026 13:06:33
+  DATA = 0001FF15025417111A08040D020F985300001A00000000000000000000000000
+  PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
   PLCTYPE = 42
 END_HEADER
@@ -975,7 +975,7 @@ IF Page > 0 THEN
                                         Page := Page - 1;    
                                         ClearDisplay := TRUE;    
                                 END_IF;
-                                IF DownEdge.Q THEN
+                                IF DownEdge.Q AND (Page < 4) THEN
                                         RowIndex := RowIndex + 1;        
                                 END_IF;
                                                         
@@ -1299,4 +1299,4 @@ IF FB_Power.Status THEN
         
         WritePosExecute := TRUE;
 END_IF;
-]]></Program><Checksum>E2368A0F6FB9F78345337DD1C37F14CBC247793E5B10F0C23409BCC6</Checksum></PLCFile></NordCon>
+]]></Program><Checksum>A4517B1EB0C80D150856967CAB2606FA12CD3F53B5E433640F687522</Checksum></PLCFile></NordCon>
