@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="27.07.2026 08:34:51"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="04.08.2026 10:49:24"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 27/07/2026 08:34:51
-  DATA = 0001FF13024014871A071B08222B128A00001A00000000000000000000000000
+  DATE = 04/08/2026 10:49:24
+  DATA = 0001FF15025416F81A08040A3114638F00001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D2720202020202020494E495449414C4953494E472E2E2E202020202020
   STMODE = ON
   PLCTYPE = 42
@@ -25,6 +25,7 @@ END_HEADER
 (* @Variablen declarations *)
 VAR_ACCESS 
   _5_State_digital_input: INT;
+  _0_Set_digital_output: INT;
 END_VAR
 
 VAR 
@@ -38,7 +39,8 @@ VAR_ACCESS
 END_VAR
 
 VAR 
-  TorqueLimit: INT; (* ADJUSTABLE - Unit is deciamps *)
+  TorqueLimitUp: INT; (* ADJUSTABLE - Unit is deciamps *)
+  TorqueLimitDown: INT; (* ADJUSTABLE - Unit is deciamps *)
   StartPos: DINT := 0; (* The start position is when the door is closed *)
   EndPos: DINT := 10000; (* Unit is millirevs | 1 Rev = 1000 *)
   TargetPos: DINT := 0;
@@ -73,6 +75,7 @@ VAR_ACCESS
   _120_PLC_P355_6: INT; (* FloorDeadZone *)
   _121_PLC_P355_7: INT; (* TopDeadZone *)
   _122_PLC_P355_8: INT;
+  _123_PLC_P355_9: INT;
 END_VAR
 
 VAR 
@@ -115,7 +118,8 @@ VAR CONSTANT
   RunPageL2: STRING := |P:12345678 | S: 3 |;
   RunFreqStr: STRING := ' RunFreq';
   ClearFreqStr: STRING := ' ClearFreq';
-  TorqueLimitStr: STRING := ' TorqueLimit';
+  TorqueLimitUpStr: STRING := ' TorqueLimUp';
+  TorqueLimitDownStr: STRING := ' TorqueLimDo';
   MaxJamsStr: STRING := ' MaxJams';
   HomeFreqStr: STRING := ' HomingFreq';
   FloorDeadZoneStr: STRING := ' FloorDeadZone';
@@ -135,6 +139,8 @@ VAR
   UpEdge: R_TRIG;
   DownEdge: R_TRIG;
   DI2Edge: R_TRIG;
+  DI5Edge: R_TRIG;
+  DI6Edge: R_TRIG;
   TorqueEdge: R_TRIG;
   ClearDisplay: BOOL := 0;
   HomingState: INT := 0;
@@ -147,7 +153,6 @@ VAR_ACCESS
 END_VAR
 
 VAR 
-  DI5Edge: R_TRIG;
   FB_Reset: MC_Reset;
   LeftEdge: R_TRIG;
   RightEdge: R_TRIG;
@@ -201,11 +206,13 @@ END_VAR
 (* @Displayformat *)
 (*
 _5_State_digital_input=0
+_0_Set_digital_output=0
 SetFreq=0
 RunFreq=0
 ClearFreq=0
 _90_Actual_torque_current=0
-TorqueLimit=0
+TorqueLimitUp=0
+TorqueLimitDown=0
 StartPos=0
 EndPos=0
 TargetPos=0
@@ -253,6 +260,7 @@ _119_PLC_P355_5=0
 _120_PLC_P355_6=0
 _121_PLC_P355_7=0
 _122_PLC_P355_8=0
+_123_PLC_P355_9=0
 ResetPos.EXECUTE=0
 ResetPos.POSITION=0
 JamCount=0
@@ -334,7 +342,8 @@ RunPageL1=0
 RunPageL2=0
 RunFreqStr=0
 ClearFreqStr=0
-TorqueLimitStr=0
+TorqueLimitUpStr=0
+TorqueLimitDownStr=0
 MaxJamsStr=0
 HomeFreqStr=0
 FloorDeadZoneStr=0
@@ -371,6 +380,10 @@ DownEdge.CLK=0
 DownEdge.Q=0
 DI2Edge.CLK=0
 DI2Edge.Q=0
+DI5Edge.CLK=0
+DI5Edge.Q=0
+DI6Edge.CLK=0
+DI6Edge.Q=0
 TorqueEdge.CLK=0
 TorqueEdge.Q=0
 ClearDisplay=0
@@ -378,8 +391,6 @@ HomingState=0
 IsBlocked=0
 HomingTorqueLimit=0
 _39_PLC_set_digital_output_bus=0
-DI5Edge.CLK=0
-DI5Edge.Q=0
 FB_Reset.EXECUTE=0
 FB_Reset.DONE=0
 FB_Reset.ERROR=0
@@ -475,6 +486,8 @@ DownArrowChar=0
      1.0  20/07/2026  Initial release.
 ========================================================================================================================
 
+
+
 REQUIRED TO ENABLE AUTO HOMING:
 P480[09] = Reference point [23]
 P481[09] = Output via PLC  [40]
@@ -482,19 +495,23 @@ P481[09] = Output via PLC  [40]
 ADJUSTABLE PARAMETERS:
 P355[01] = Variable - RunFreq                                           [Test value: 2000]  Fraction out of 16384
 P355[02] = Variable - ClearFreq                                         [Test value: 3500]  Fraction out of 16384
-P355[03] = Variable - TorqueLimit                                       [Test value: 2]     Unit is deciamps
-P355[04] = Variable - MaxJams                                           [Test value: 5]
-P355[05] = Variable - HomeFreq                                          [Test value: 2000]  Fraction out of 16384
-P355[06] = Variable - FloorDeadZone                                     [Test value: 100]   Unit is millirevs
-P355[07] = Variable - TopDeadZone                                       [Test value: 100]   Unit is millirevs
-P355[08] = Variable - HomingTorqueLimit                                 [Test value: 2]     Unit is deciamps
+P355[03] = Variable - TorqueLimitUp                                     [Test value: 2]     Unit is deciamps
+P355[04] = Variable - TorqueLimitDown                                   [Test value: 2]     Unit is deciamps
+P355[05] = Variable - MaxJams                                           [Test value: 5]
+P355[06] = Variable - HomeFreq                                          [Test value: 2000]  Fraction out of 16384
+P355[07] = Variable - FloorDeadZone                                     [Test value: 100]   Unit is millirevs
+P355[08] = Variable - TopDeadZone                                       [Test value: 100]   Unit is millirevs
+P355[09] = Variable - HomingTorqueLimit                                 [Test value: 2]     Unit is deciamps
 
 P356[01] = Last saved position. Loaded in during drive initialisation   [Test value: 100]   Unit is millirevs
 P356[02] = Variable - EndPos                                            [Test value: 10000] Unit is millirevs
 P356[03] = Variable - RestTime                                          [Test value: 2000]  Unit is milliseconds
 P356[04] = Variable - JamTime                                           [Test value: 2000]  Unit is milliseconds
 
-Controls:
+Assumes top sensor is digital input 5 
+And bottom is         digital input 6
+
+CONTROLS:
 DI1 OR Parameter box up: Door open
 DI2 OR Parameter box down: Force door closed OR Reference point during homing
 DI5: Test jam signal
@@ -502,13 +519,26 @@ DI6 OR (Parameter box ok + Parameter box on): Initiate homing
 
 ERRORS:
 E23: Max jam clearing attempts reached.
+
+
 *)
 
-
-
 DI5Edge(CLK:=_5_State_digital_input.4);
+DI6Edge(CLK:=_5_State_digital_input.5);
+
+(*0. -------Track Limit detection-------*)
+IF NOT IsHoming THEN
+        IF DI5Edge.Q THEN
+                _110_ErrorFlags.1 := TRUE;        
+        END_IF;
+        
+        IF DI6Edge.Q THEN
+                _110_ErrorFlags.2 := TRUE; 
+        END_IF;
+END_IF; 
+
 (*1. ----------Jam detection------------*)                                                                                          
-IF ((ABS(_90_Actual_torque_current) > TorqueLimit)) AND NOT IsHoming AND Power THEN
+IF ((_90_Actual_torque_current > TorqueLimitUp) OR (_90_Actual_torque_current < -TorqueLimitDown)) AND NOT IsHoming AND Power THEN
         
         (*Jamming when opening*)
         IF ((State = 1)) THEN 
@@ -558,12 +588,13 @@ IF NOT Init THEN
         
         RunFreq := _115_PLC_P355_1;
         ClearFreq := _116_PLC_P355_2;
-        TorqueLimit := _117_PLC_P355_3;
-        MaxJams := _118_PLC_P355_4;
-        HomeFreq := _119_PLC_P355_5;
-        FloorDeadZone := INT_TO_DINT(_120_PLC_P355_6);
-        TopDeadZone := INT_TO_DINT(_121_PLC_P355_7);
-        HomingTorqueLimit := _122_PLC_P355_8;
+        TorqueLimitUp := _117_PLC_P355_3;
+        TorqueLimitDown := _118_PLC_P355_4;
+        MaxJams := _119_PLC_P355_5;
+        HomeFreq := _120_PLC_P355_6;
+        FloorDeadZone := INT_TO_DINT(_121_PLC_P355_7);
+        TopDeadZone := INT_TO_DINT(_122_PLC_P355_8);
+        HomingTorqueLimit := _123_PLC_P355_9;
 
         Init := TRUE;
 ELSE
@@ -588,7 +619,9 @@ IF JamCount >= MaxJams THEN
         _110_ErrorFlags.0 := TRUE;
             
         IF _72_Parameterbox_key_state.1 THEN
-                _110_ErrorFlags.0 := FALSE;   
+                _110_ErrorFlags.0 := FALSE;
+                _110_ErrorFlags.1 := FALSE;
+                _110_ErrorFlags.2 := FALSE;   
                 Init := FALSE;
                 Power := TRUE; 
                 JamCount := 0;   
@@ -620,8 +653,9 @@ CASE Page OF
                 (*
                         Line 1: Running frequency
                         Line 2: Frequency used to pull door up after encountering a jam going down.
-                        Line 3: Torque current limit for faults
-                        Line 4: Maximum number of jams in a cycle before fault is thrown
+                        Line 3: Torque current limit for faults going up
+                        Line 4: Torque current limit for faults going down
+                        
                 *)
                 
                 (*First entry deploys label string*)                                                                                                    
@@ -643,73 +677,75 @@ CASE Page OF
                         TEXT := MidChar);         
                         
                 Display2(ENABLE := L3Enabled, CLEAR := FALSE, ROW := 2, COLUMN := 0,
-                        TEXT := TorqueLimitStr);   
+                        TEXT := TorqueLimitUpStr);   
                 ParPageValue(ENABLE := L3Enabled, MODE := 0, ROW := 2, COLUMN := 12, POINT := 0, LENGTH := 6,
-                        VALUE := INT_TO_DINT(TorqueLimit));
+                        VALUE := INT_TO_DINT(TorqueLimitUp));
                 Display2(ENABLE := TRUE, CLEAR := FALSE, ROW := 2, COLUMN := 19,
                         TEXT := MidChar);        
                         
                 Display3(ENABLE := L4Enabled, CLEAR := FALSE, ROW := 3, COLUMN := 0,
-                        TEXT := MaxJamsStr);       
+                        TEXT := TorqueLimitDownStr);       
                 ParPageValue(ENABLE := L4Enabled, MODE := 0, ROW := 3, COLUMN := 12, POINT := 0, LENGTH := 6,
-                        VALUE := INT_TO_DINT(MaxJams));
+                        VALUE := INT_TO_DINT(TorqueLimitDown));
                 Display3(ENABLE := TRUE, CLEAR := FALSE, ROW := 3, COLUMN := 19,
                         TEXT := DownArrowChar);
                                                                                                                                     
                 Line1Val := INT_TO_DINT(RunFreq); 
                 Line2Val := INT_TO_DINT(ClearFreq);
-                Line3Val := INT_TO_DINT(TorqueLimit);     
+                Line3Val := INT_TO_DINT(TorqueLimitUp);
+                Line4Val := INT_TO_DINT(TorqueLimitDown);      
                 Line4Val := INT_TO_DINT(MaxJams); 
                                
         2: (*Page 2*)
                 (*
-                        Line 1: Frequency used during homing
-                        Line 2: Floor dead zone
-                        Line 3: Ceiling dead zone
-                        Line 4: Torque limit to mark reference point during homing
+                        Line 1: Maximum number of jams in a cycle before fault is thrown
+                        Line 2: Frequency used during homing
+                        Line 3: Floor dead zone
+                        Line 4: Ceiling dead zone
+                        
                 *)
                 
                 
                 (*First entry deploys label string*)                       
                 Display0(ENABLE := L1Enabled,CLEAR := ClearDisplay,ROW := 0,COLUMN := 0,
-                        TEXT := HomeFreqStr);
+                        TEXT := MaxJamsStr);
                 (*Second entry deploys actual value*)                        
                 ParPageValue(ENABLE := L1Enabled,MODE := 0,ROW := 0,COLUMN := 12,POINT := 0,LENGTH := 6,
-                        VALUE := INT_TO_DINT(HomeFreq));
+                        VALUE := INT_TO_DINT(MaxJams));
                 (*Third entry is the end character to simulate a scroll bar*)        
                 Display2(ENABLE := TRUE, CLEAR := FALSE, ROW := 0, COLUMN := 19,
                         TEXT := UpArrowChar);
                 
                 (*Same for all 4 rows*)  
                 Display1(ENABLE := L2Enabled,CLEAR := FALSE,ROW := 1,COLUMN := 0,
-                        TEXT := FloorDeadZoneStr);        
+                        TEXT := HomeFreqStr);        
                 ParPageValue(ENABLE := L2Enabled,MODE := 0,ROW := 1,COLUMN := 12,POINT := 0,LENGTH := 6,
-                        VALUE := FloorDeadZone);
+                        VALUE := INT_TO_DINT(HomeFreq));
                 Display2(ENABLE := TRUE, CLEAR := FALSE, ROW := 1, COLUMN := 19,
                         TEXT := MidChar);
                 
                 Display2(ENABLE := L3Enabled,CLEAR := FALSE,ROW := 2,COLUMN := 0,
-                        TEXT := TopDeadZoneStr);        
+                        TEXT := FloorDeadZoneStr);        
                 ParPageValue(ENABLE := L3Enabled,MODE := 0,ROW := 2,COLUMN := 12,POINT := 0,LENGTH := 6,
-                        VALUE := TopDeadZone);
+                        VALUE := FloorDeadZone);
                 Display2(ENABLE := TRUE, CLEAR := FALSE, ROW := 2, COLUMN := 19,
                         TEXT := MidChar);
                 
                 Display3(ENABLE := L4Enabled,CLEAR := FALSE,ROW := 3,COLUMN := 0,
-                        TEXT := HomeTorqueLimitStr);       
+                        TEXT := TopDeadZoneStr);       
                 ParPageValue(ENABLE := L4Enabled,MODE := 0,ROW := 3,COLUMN := 12,POINT := 0,LENGTH := 6,
-                        VALUE := INT_TO_DINT(HomingTorqueLimit));
+                        VALUE := TopDeadZone);
                 Display3(ENABLE := TRUE, CLEAR := FALSE, ROW := 3, COLUMN := 19,
                         TEXT := DownArrowChar);
                 
-                Line1Val := INT_TO_DINT(HomeFreq); 
-                Line2Val := FloorDeadZone;
-                Line3Val := TopDeadZone;   
-                Line4Val := INT_TO_DINT(HomingTorqueLimit);
+                Line1Val := INT_TO_DINT(MaxJams);
+                Line2Val := INT_TO_DINT(HomeFreq); 
+                Line3Val := FloorDeadZone;
+                Line4Val := TopDeadZone;   
                 
         3: (*Page 3*)
                 (*
-                        Line 1: Saved position used to restore position in case of shutdown
+                        Line 1: Torque limit to mark reference point during homing
                         Line 2: End position (ceiling position in millirevolutions)
                         Line 3: Pause duration when reaching ceiling
                         Line 4: Time spent off after encountering a jam going up
@@ -717,10 +753,10 @@ CASE Page OF
         
                 (*First entry deploys label string*)  
                 Display0(ENABLE := L1Enabled,CLEAR := ClearDisplay,ROW := 0,COLUMN := 0,
-                        TEXT := ActualPosStr);
+                        TEXT := HomeTorqueLimitStr);
                 (*Second entry deploys actual value*)                        
                 ParPageValue(ENABLE := L1Enabled,MODE := 0,ROW := 0,COLUMN := 12,POINT := 0,LENGTH := 6,
-                        VALUE := _125_PLC_P356_1);
+                        VALUE := INT_TO_DINT(HomingTorqueLimit));
                 (*Third entry is the end character to simulate a scroll bar*)        
                 Display2(ENABLE := TRUE, CLEAR := FALSE, ROW := 0, COLUMN := 19,
                         TEXT := UpArrowChar);
@@ -744,13 +780,56 @@ CASE Page OF
                 ParPageValue(ENABLE := L4Enabled,MODE := 0,ROW := 3,COLUMN := 12,POINT := 0,LENGTH := 6,
                         VALUE := JamTime);
                 Display0(ENABLE := TRUE, CLEAR := ClearDisplay, ROW := 3,COLUMN := 19,
-                        TEXT := EndChar);
+                        TEXT := DownArrowChar);
                 
-                Line1Val := _125_PLC_P356_1; 
+                Line1Val := INT_TO_DINT(HomingTorqueLimit); 
                 Line2Val := EndPos;
                 Line3Val := RestTime;   
                 Line4Val := JamTime;
+        
+        4: (*Page 4*)
+                (*
+                        Line 1: Saved position used to restore position in case of shutdown
+                        Line 2: Blank
+                        Line 3: Blank
+                        Line 4: Blank
+                *)
                 
+                Display0(ENABLE := L1Enabled,CLEAR := ClearDisplay,ROW := 0,COLUMN := 0,
+                        TEXT := ActualPosStr);
+                (*Second entry deploys actual value*)                        
+                ParPageValue(ENABLE := L1Enabled,MODE := 0,ROW := 0,COLUMN := 12,POINT := 0,LENGTH := 6,
+                        VALUE := _125_PLC_P356_1);
+                (*Third entry is the end character to simulate a scroll bar*)        
+                Display2(ENABLE := TRUE, CLEAR := FALSE, ROW := 0, COLUMN := 19,
+                        TEXT := UpArrowChar);
+                
+                Display1(ENABLE := L2Enabled,CLEAR := FALSE,ROW := 1,COLUMN := 0,
+                        TEXT := BlankString);        
+                ParPageValue(ENABLE := L2Enabled,MODE := 0,ROW := 1,COLUMN := 12,POINT := 0,LENGTH := 6,
+                        VALUE := 0);
+                Display2(ENABLE := TRUE, CLEAR := FALSE, ROW := 1, COLUMN := 19,
+                        TEXT := MidChar); 
+                
+                Display2(ENABLE := L3Enabled,CLEAR := FALSE,ROW := 2,COLUMN := 0,
+                        TEXT := BlankString);        
+                ParPageValue(ENABLE := L3Enabled,MODE := 0,ROW := 2,COLUMN := 12,POINT := 0,LENGTH := 6,
+                        VALUE := 0);
+                Display2(ENABLE := TRUE, CLEAR := FALSE, ROW := 2, COLUMN := 19,
+                        TEXT := MidChar);
+                
+                Display3(ENABLE := L4Enabled,CLEAR := FALSE,ROW := 3,COLUMN := 0,
+                        TEXT := BlankString);       
+                ParPageValue(ENABLE := L4Enabled,MODE := 0,ROW := 3,COLUMN := 12,POINT := 0,LENGTH := 6,
+                        VALUE := 0);
+                Display0(ENABLE := TRUE, CLEAR := ClearDisplay, ROW := 3,COLUMN := 19,
+                        TEXT := EndChar);
+                        
+                        
+                Line1Val := _125_PLC_P356_1;
+                Line2Val := 0;
+                Line3Val := 0;   
+                Line4Val := 0;
 ELSE                
         IsParBoxOn := TRUE;
                 
@@ -928,7 +1007,7 @@ IF Page > 0 THEN
                                 IF UpEdge.Q THEN
                                         RowIndex := RowIndex - 1;      
                                 END_IF;
-                                IF DownEdge.Q AND (Page < 3) THEN
+                                IF DownEdge.Q AND (Page < 4) THEN
                                         RowIndex := 0;
                                         Page := Page + 1; 
                                         ClearDisplay := TRUE;     
@@ -953,7 +1032,7 @@ END_IF;
 
 (*Parameter 355 indexes take 16 bit values. Those are on HMIPages 1 and 2*)
 SavePar16(
-        EXECUTE := IsSaving AND ((Page = 1) OR (Page = 2)) AND (State <> 0),
+        EXECUTE := IsSaving AND ((Page = 1) OR (Page = 2) OR ((Page = 3) AND (RowIndex = 0))) AND (State <> 0),
         PARAMETERNUMBER := 355,
         PARAMETERINDEX := (RowIndex + 4 * (Page - 1)),
         VALUE := DINT_TO_INT(EditBuffer),
@@ -990,7 +1069,7 @@ CASE State OF
                 CASE HomingState OF 
                         
                         00: (*Homing begins upwards in the positive direction*)
-                                IF ((DI2Edge.Q) OR ((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) OR (TorqueEdge.Q AND (_90_Actual_torque_current > 0))) 
+                                IF ((DI5Edge.Q) OR ((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) OR (TorqueEdge.Q AND (_90_Actual_torque_current > 0))) 
                                 AND (_88_Current_Speed >= 0) THEN
                                         _39_PLC_set_digital_output_bus.8 := TRUE;
                                 
@@ -1000,7 +1079,7 @@ CASE State OF
                                 END_IF;  
                                 
                         01: (*Homing ends downwards in the negative direction*)
-                                IF ((DI2Edge.Q) OR ((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) OR (TorqueEdge.Q AND (_90_Actual_torque_current < 0))) THEN
+                                IF ((DI6Edge.Q) OR ((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) OR (TorqueEdge.Q AND (_90_Actual_torque_current < 0))) THEN
                                         _39_PLC_set_digital_output_bus.8 := TRUE;
                                         
                                         EndPos := EndPos - _145_Actual_pos;
@@ -1204,4 +1283,4 @@ IF FB_Power.Status THEN
         
         WritePosExecute := TRUE;
 END_IF;
-]]></Program><Checksum>1A843D60F6547BC1FF3A2EF5F70774C9FD15BDF6128660D279C39985</Checksum></PLCFile></NordCon>
+]]></Program><Checksum>2DC0D11A47032884D53FCB82AAB013F557507BB179511DE305225DBA</Checksum></PLCFile></NordCon>
