@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="04.08.2026 14:44:52"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="04.08.2026 15:39:27"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 04/08/2026 14:44:52
-  DATA = 0001FF15026017AF1A08040E1C264A8600001A00000000000000000000000000
+  DATE = 04/08/2026 15:39:27
+  DATA = 0001FF15026017A31A08040F2426335700001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
   PLCTYPE = 42
@@ -606,7 +606,7 @@ IF NOT Init THEN
         END_IF;
         
         (*Sets the parameters to enable autohoming*)
-        ParamInit := ParamInit + 1;
+        ParamInit := 1;
         
         (*Other presets*)
         RestTime :=  _127_PLC_P356_3;
@@ -646,26 +646,26 @@ CASE ParamInit OF
                         PARAMETERNUMBER := 480,
                         PARAMETERINDEX := 8,
                         VALUE := 23,
-                        RAMONLY := 0        
+                        RAMONLY := 1        
                 );
                 
                 IF WriteParam.Done THEN
-                        ParamInit := ParamInit + 1;
                         WriteParam(EXECUTE:=FALSE);
+                        ParamInit := ParamInit + 1;
                 END_IF;
                 
-        2:
+        2: 
                 WriteParam(
                         EXECUTE := TRUE,
                         PARAMETERNUMBER := 481,
                         PARAMETERINDEX := 8,
                         VALUE := 40,
-                        RAMONLY := 0        
+                        RAMONLY := 1       
                 );
                 
                 IF WriteParam.Done THEN
-                        ParamInit := ParamInit + 1;
                         WriteParam(EXECUTE:=FALSE);
+                        ParamInit := 0;
                 END_IF;
 END_CASE;
 
@@ -1292,7 +1292,7 @@ END_IF;
 FB_Reset(EXECUTE := _72_Parameterbox_key_state.1);
  
 (*7. -----------Homing handling--------------*)
-IF (_72_Parameterbox_key_state.0  AND _72_Parameterbox_key_state.5 AND IsParBoxOn)
+IF ((_72_Parameterbox_key_state.0  AND _72_Parameterbox_key_state.5 AND IsParBoxOn))
 AND (State = 1) AND (_88_Current_speed = 0) THEN
         Power := TRUE;
         HomingState := 0;
@@ -1347,4 +1347,4 @@ IF FB_Power.Status THEN
         
         WritePosExecute := TRUE;
 END_IF;
-]]></Program><Checksum>409AFF25118D3A7F002B6D345FBE92248214277010D661CC79D3FBE9</Checksum></PLCFile></NordCon>
+]]></Program><Checksum>44FEA4AA60DCBACD1EC5520A27014DBB8ED4D468724B949877552C3B</Checksum></PLCFile></NordCon>
