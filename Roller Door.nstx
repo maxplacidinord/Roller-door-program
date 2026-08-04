@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="04.08.2026 10:49:24"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="04.08.2026 12:46:50"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 04/08/2026 10:49:24
-  DATA = 0001FF15025416F81A08040A3114638F00001A00000000000000000000000000
+  DATE = 04/08/2026 12:46:50
+  DATA = 0001FF15025417021A08040C2E0262D900001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D2720202020202020494E495449414C4953494E472E2E2E202020202020
   STMODE = ON
   PLCTYPE = 42
@@ -523,15 +523,22 @@ E23: Max jam clearing attempts reached.
 
 *)
 
+DI2Edge(CLK:=_5_State_digital_input.1);
+
+(*Top sensor*)
 DI5Edge(CLK:=_5_State_digital_input.4);
+
+(*Bottom sensor*)
 DI6Edge(CLK:=_5_State_digital_input.5);
 
 (*0. -------Track Limit detection-------*)
 IF NOT IsHoming THEN
+        (*Exceeded Top*)
         IF DI5Edge.Q THEN
                 _110_ErrorFlags.1 := TRUE;        
         END_IF;
         
+        (*Exceeded bottom*)
         IF DI6Edge.Q THEN
                 _110_ErrorFlags.2 := TRUE; 
         END_IF;
@@ -613,25 +620,11 @@ ELSE
 END_IF;
 
 (*3. ----------Display and information------------*)
-FB_Reset(EXECUTE := (_72_Parameterbox_key_state.1));
 
-IF JamCount >= MaxJams THEN
-        _110_ErrorFlags.0 := TRUE;
-            
-        IF _72_Parameterbox_key_state.1 THEN
-                _110_ErrorFlags.0 := FALSE;
-                _110_ErrorFlags.1 := FALSE;
-                _110_ErrorFlags.2 := FALSE;   
-                Init := FALSE;
-                Power := TRUE; 
-                JamCount := 0;   
-                State := 1;                      
-        END_IF;      
-END_IF;
 
 (*Defines moving from the running page to the parameter pages.*)
 LeftEdge(CLK:=_72_Parameterbox_key_state.7);
-RightEdge(CLK:=_72_Parameterbox_key_state.6);
+RightEdge(CLK:=_72_Parameterbox_key_state.6);  
 
 IF RightEdge.Q AND (Page <= 0) THEN
         Page := ABS(Page);
@@ -1064,12 +1057,13 @@ CASE State OF
                 IsBlocked := (ABS(_90_Actual_torque_current) > HomingTorqueLimit);
                 TorqueEdge(CLK:=IsBlocked);
                 
-                DI2Edge(CLK:=_5_State_digital_input.1);
+                
 
                 CASE HomingState OF 
                         
                         00: (*Homing begins upwards in the positive direction*)
-                                IF ((DI5Edge.Q) OR ((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) OR (TorqueEdge.Q AND (_90_Actual_torque_current > 0))) 
+                                IF ((DI5Edge.Q) OR ((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) 
+                                OR (TorqueEdge.Q AND (_90_Actual_torque_current > 0))) 
                                 AND (_88_Current_Speed >= 0) THEN
                                         _39_PLC_set_digital_output_bus.8 := TRUE;
                                 
@@ -1079,7 +1073,8 @@ CASE State OF
                                 END_IF;  
                                 
                         01: (*Homing ends downwards in the negative direction*)
-                                IF ((DI6Edge.Q) OR ((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) OR (TorqueEdge.Q AND (_90_Actual_torque_current < 0))) THEN
+                                IF ((DI6Edge.Q) OR ((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) 
+                                OR (TorqueEdge.Q AND (_90_Actual_torque_current < 0))) THEN
                                         _39_PLC_set_digital_output_bus.8 := TRUE;
                                         
                                         EndPos := EndPos - _145_Actual_pos;
@@ -1225,10 +1220,31 @@ CASE State OF
                         END_IF;     
                 END_IF;
 END_CASE;
+
+IF _72_Parameterbox_key_state.1 THEN
+        _110_ErrorFlags.0 := FALSE;
+        _110_ErrorFlags.1 := FALSE;
+        _110_ErrorFlags.2 := FALSE;
+        
+        FB_MoveAbs(EXECUTE:= FALSE);
+        Power := TRUE; 
+        IsHoming := FALSE; 
+        MoveExecute := FALSE;
+        
+        Init := FALSE;
+        JamCount := 0;   
+        State := 1;
+                            
+END_IF; 
+
+IF JamCount >= MaxJams THEN
+        _110_ErrorFlags.0 := TRUE;     
+END_IF;
+
+FB_Reset(EXECUTE := _72_Parameterbox_key_state.1);
  
 (*5. -----------Homing handling--------------*)
-IF ((_5_State_digital_input.5) OR 
-(_72_Parameterbox_key_state.0  AND _72_Parameterbox_key_state.5 AND IsParBoxOn))
+IF (_72_Parameterbox_key_state.0  AND _72_Parameterbox_key_state.5 AND IsParBoxOn)
 AND (State = 1) AND (_88_Current_speed = 0) THEN
         Power := TRUE;
         HomingState := 0;
@@ -1283,4 +1299,4 @@ IF FB_Power.Status THEN
         
         WritePosExecute := TRUE;
 END_IF;
-]]></Program><Checksum>2DC0D11A47032884D53FCB82AAB013F557507BB179511DE305225DBA</Checksum></PLCFile></NordCon>
+]]></Program><Checksum>E2368A0F6FB9F78345337DD1C37F14CBC247793E5B10F0C23409BCC6</Checksum></PLCFile></NordCon>
