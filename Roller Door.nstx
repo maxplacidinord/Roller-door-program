@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="05.08.2026 08:41:42"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="05.08.2026 09:20:55"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 05/08/2026 08:41:42
+  DATE = 05/08/2026 09:20:55
   DATA = 0001FF15026017A71A08040F272908BC00001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
@@ -568,7 +568,7 @@ E23 Flag 1: Max jam clearing attempts reached.
 
 (* *************************************************************** *)
 (*                          MAIN PROGRAM                          *)
-(* *************************************************************** *))
+(* *************************************************************** *)
 
 
 DI2Edge(CLK:=_5_State_digital_input.1);
@@ -1380,4 +1380,4 @@ IF FB_Power.Status THEN
         
         WritePosExecute := TRUE;
 END_IF;
-]]></Program><Checksum>4710FA798F01C627B3940AD5C50EEA80E76EA36FF91DCECEF5B6120B</Checksum></PLCFile></NordCon>
+]]></Program><Checksum>0A7C40F02C5C0302F24DAFD4EA46AF9B23A2694B175AC582E53D7156</Checksum></PLCFile></NordCon>
