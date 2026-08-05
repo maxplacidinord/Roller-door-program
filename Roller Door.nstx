@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="04.08.2026 16:40:54"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="05.08.2026 08:41:42"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 04/08/2026 16:40:54
+  DATE = 05/08/2026 08:41:42
   DATA = 0001FF15026017A71A08040F272908BC00001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
@@ -561,7 +561,9 @@ DI5: Test jam signal
 DI6 OR (Parameter box ok + Parameter box on): Initiate homing
 
 ERRORS:
-E23: Max jam clearing attempts reached.
+E23 Flag 1: Max jam clearing attempts reached.
+    Flag 2: DI5 triggered (top sensor)
+    Flag 3: DI6 triggered (bottom sensor)
 ========================================================================================================================*)
 
 (* *************************************************************** *)
@@ -1378,4 +1380,4 @@ IF FB_Power.Status THEN
         
         WritePosExecute := TRUE;
 END_IF;
-]]></Program><Checksum>917461F7FFBF2BD699191702FED93861AC182F380CE5D8FE420C5992</Checksum></PLCFile></NordCon>
+]]></Program><Checksum>4710FA798F01C627B3940AD5C50EEA80E76EA36FF91DCECEF5B6120B</Checksum></PLCFile></NordCon>
