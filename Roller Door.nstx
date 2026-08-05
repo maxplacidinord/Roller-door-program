@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="05.08.2026 09:20:55"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="05.08.2026 10:31:16"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 05/08/2026 09:20:55
-  DATA = 0001FF15026017A71A08040F272908BC00001A00000000000000000000000000
+  DATE = 05/08/2026 10:31:16
+  DATA = 0001FF15026017981A08050A1624D9DE00001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
   PLCTYPE = 42
@@ -1142,9 +1142,8 @@ CASE State OF
                 
                 CASE HomingState OF 
                         00: (*Homing begins upwards in the positive direction*)
-                                IF (((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) 
-                                OR (TorqueEdge.Q AND (_90_Actual_torque_current > 0))) 
-                                AND (_88_Current_Speed >= 0) THEN
+                                IF ((DI5Edge.Q) OR ((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) 
+                                OR (TorqueEdge.Q AND (_90_Actual_torque_current > 0))) THEN
                                         _39_PLC_set_digital_output_bus.8 := TRUE;
                                 
                                         EndPos := _145_Actual_pos;
@@ -1380,4 +1379,4 @@ IF FB_Power.Status THEN
         
         WritePosExecute := TRUE;
 END_IF;
-]]></Program><Checksum>0A7C40F02C5C0302F24DAFD4EA46AF9B23A2694B175AC582E53D7156</Checksum></PLCFile></NordCon>
+]]></Program><Checksum>42F97FF3C3A3C8F2D3BEC5BFF6C72D4D3AA3911F021C4F702AFDF6B7</Checksum></PLCFile></NordCon>
