@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="05.08.2026 10:31:16"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="10.08.2026 09:24:37"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 05/08/2026 10:31:16
-  DATA = 0001FF15026017981A08050A1624D9DE00001A00000000000000000000000000
+  DATE = 10/08/2026 09:24:37
+  DATA = 0001FF150260178C1A080A09170CCF8A00001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
   PLCTYPE = 42
@@ -567,11 +567,10 @@ E23 Flag 1: Max jam clearing attempts reached.
 ========================================================================================================================*)
 
 (* *************************************************************** *)
-(*                          MAIN PROGRAM                          *)
+(*                          MAIN PROGRAM                           *)
 (* *************************************************************** *)
 
-
-DI2Edge(CLK:=_5_State_digital_input.1);
+(*1. --------------------Track Limit detection----------------------*)
 
 (*Top sensor*)
 DI5Edge(CLK:=_5_State_digital_input.4);
@@ -579,7 +578,6 @@ DI5Edge(CLK:=_5_State_digital_input.4);
 (*Bottom sensor*)
 DI6Edge(CLK:=_5_State_digital_input.5);
 
-(*1. -------Track Limit detection-------*)
 IF NOT IsHoming THEN
         (*Exceeded Top*)
         IF DI5Edge.Q THEN
@@ -593,7 +591,9 @@ IF NOT IsHoming THEN
 END_IF; 
 
 (*2. ------------------------Jam detection-----------------------------*)                                                                                          
-IF ((_90_Actual_torque_current > TorqueLimitUp) OR (_90_Actual_torque_current < -TorqueLimitDown)) AND NOT IsHoming AND Power THEN
+IF ((_90_Actual_torque_current > TorqueLimitUp) 
+OR (_90_Actual_torque_current < -TorqueLimitDown)) 
+AND NOT IsHoming AND Power THEN
         
         (*Jamming when opening*)
         IF ((State = 1)) THEN 
@@ -631,7 +631,8 @@ IF NOT Init THEN
         
 
         (*Restores position from memory*)
-        IF (_125_PLC_P356_1 > FloorDeadZone) AND (_125_PLC_P356_1 < (EndPos - TopDeadZone)) THEN
+        IF (_125_PLC_P356_1 > FloorDeadZone) 
+        AND (_125_PLC_P356_1 < (EndPos - TopDeadZone)) THEN
                 ResetPos(
                         EXECUTE := TRUE, 
                         POSITION := _125_PLC_P356_1
@@ -721,7 +722,6 @@ END_IF;
 UpEdge(CLK := _72_Parameterbox_key_state.3);
 DownEdge(CLK := _72_Parameterbox_key_state.4);
 OkEdge(CLK:=_72_Parameterbox_key_state.5);
-
 
 CASE Page OF                       
         1: (*Page 1*)
@@ -1142,7 +1142,8 @@ CASE State OF
                 
                 CASE HomingState OF 
                         00: (*Homing begins upwards in the positive direction*)
-                                IF ((DI5Edge.Q) OR ((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) 
+                                IF ((DI5Edge.Q) 
+                                OR ((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) 
                                 OR (TorqueEdge.Q AND (_90_Actual_torque_current > 0))) THEN
                                         _39_PLC_set_digital_output_bus.8 := TRUE;
                                 
@@ -1152,7 +1153,8 @@ CASE State OF
                                 END_IF;  
                                 
                         01: (*Homing ends downwards in the negative direction*)
-                                IF ((DI6Edge.Q) OR ((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) 
+                                IF ((DI6Edge.Q) 
+                                OR ((UpEdge.Q OR DownEdge.Q OR OKEdge.Q) AND IsParBoxOn) 
                                 OR (TorqueEdge.Q AND (_90_Actual_torque_current < 0))) THEN
                                         _39_PLC_set_digital_output_bus.8 := TRUE;
                                         
@@ -1324,7 +1326,7 @@ END_IF;
 FB_Reset(EXECUTE := _72_Parameterbox_key_state.1);
  
 (*7. ------------------------------Homing handling--------------------------------------*)
-IF ((_72_Parameterbox_key_state.0  AND _72_Parameterbox_key_state.5 AND IsParBoxOn))
+IF (_72_Parameterbox_key_state.0  AND _72_Parameterbox_key_state.5 AND IsParBoxOn)
 AND (State = 1) AND (_88_Current_speed = 0) THEN
         Power := TRUE;
         HomingState := 0;
@@ -1379,4 +1381,4 @@ IF FB_Power.Status THEN
         
         WritePosExecute := TRUE;
 END_IF;
-]]></Program><Checksum>42F97FF3C3A3C8F2D3BEC5BFF6C72D4D3AA3911F021C4F702AFDF6B7</Checksum></PLCFile></NordCon>
+]]></Program><Checksum>C758E308B628A10E5E86671B43B75D4C3CD6EDAF5E912AD64AF91F9D</Checksum></PLCFile></NordCon>
