@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="08.10.2026 10:28:11"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="08.10.2026 10:32:23"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 08/10/2026 10:28:11
+  DATE = 08/10/2026 10:32:23
   DATA = 0001FF1502661F211A0A080A183337EE00001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
@@ -76,6 +76,7 @@ VAR_ACCESS
   _121_PLC_P355_7: INT; (* TopDeadZone *)
   _122_PLC_P355_8: INT;
   _123_PLC_P355_9: INT;
+  _124_PLC_P355_10: INT;
 END_VAR
 
 VAR 
@@ -271,6 +272,7 @@ _120_PLC_P355_6=0
 _121_PLC_P355_7=0
 _122_PLC_P355_8=0
 _123_PLC_P355_9=0
+_124_PLC_P355_10=0
 ResetPos.EXECUTE=0
 ResetPos.POSITION=0
 JamCount=0
@@ -667,10 +669,7 @@ IF NOT Init THEN
         (*Sets the parameters to enable autohoming*)
         ParamInit := 1;
         
-        IF (DINT_TO_INT(RestTime + JamTime) + RunFreq + ClearFreq + TorqueLimitUp + TorqueLimitDown + MaxJams + HomeFreq + HomingTorqueLimit = 0) THEN
-                (*If the PLC parameter storage is empty, then write the test values*)
-                ConfigSelect := 1;
-        END_IF;
+        ConfigSelect := _124_PLC_P355_10;
 
         Init := TRUE;
 ELSE
@@ -753,6 +752,7 @@ CASE ConfigSelect OF
                 JamTime := 2000;
                 
                 ConfigInit := 1;
+                ConfigSelect := 0;
                 
         2:      (*Door 1*)
                 RunFreq := 2000;
@@ -770,6 +770,7 @@ CASE ConfigSelect OF
                 JamTime := 2000;
                 
                 ConfigInit := 1;
+                ConfigSelect := 0;
                 
         3:      (*Door 2*)
                 RunFreq := 2000;
@@ -787,6 +788,7 @@ CASE ConfigSelect OF
                 JamTime := 2000;
                 
                 ConfigInit := 1;
+                ConfigSelect := 0;
                 
         4:      (*Door 3*)  
                 RunFreq := 2000;
@@ -804,6 +806,7 @@ CASE ConfigSelect OF
                 JamTime := 2000;
                 
                 ConfigInit := 1;
+                ConfigSelect := 0;
 END_CASE;
 
 (*If the PLC parameters are all blank, it writes the test values to them*)
@@ -1592,4 +1595,4 @@ IF FB_Power.Status THEN
         
         WritePosExecute := TRUE;
 END_IF;
-]]></Program><Checksum>33BDA87319DA2AF19EDD72E446317125A987524BA5520076B9596C2B</Checksum></PLCFile></NordCon>
+]]></Program><Checksum>91246E39BD25CD010F97D37A5DE263E573EDDA0CCD0685C1A12F6353</Checksum></PLCFile></NordCon>
