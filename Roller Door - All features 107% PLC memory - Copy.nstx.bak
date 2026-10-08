@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="08.10.2026 12:09:26"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="08.10.2026 10:32:23"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 08/10/2026 12:09:26
-  DATA = 0001FF1602681C701A0A080C082917C000001A00000000000000000000000000
+  DATE = 08/10/2026 10:32:23
+  DATA = 0001FF1502661F211A0A080A183337EE00001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
   PLCTYPE = 42
@@ -688,64 +688,51 @@ ELSE
 END_IF;
 
 (*Writes correct parameters upon initialisation*)
-(*Map each commissioning step to parameter number, index and value*)
 CASE ParamInit OF
-        1:
-                Line1Val := 480;
-                Line2Val := 8;
-                Line3Val := 23;
-
-        2:
-                Line1Val := 481;
-                Line2Val := 8;
-                Line3Val := 40;
-
-        3:
-                Line1Val := 600;
-                Line2Val := 0;
-                Line3Val := 2;
-
-        4:
-                Line1Val := 553;
-                Line2Val := 0;
-                Line3Val := 1;
-
-        5:
-                Line1Val := 553;
-                Line2Val := 1;
-                Line3Val := 21;
-
-        6:
-                Line1Val := 553;
-                Line2Val := 2;
-                Line3Val := 22;
-END_CASE;
-
-
-(*Perform one write at a time*)
-IF (ParamInit >= 1) AND (ParamInit <= 6) THEN
-
-        WriteParam(
-                EXECUTE := TRUE,
-                PARAMETERNUMBER := DINT_TO_INT(Line1Val),
-                PARAMETERINDEX := DINT_TO_INT(Line2Val),
-                VALUE := DINT_TO_INT(Line3Val),
-                RAMONLY := 1
-        );
-
-        IF WriteParam.Done THEN
-                WriteParam(EXECUTE := FALSE);
-
-                IF ParamInit = 6 THEN
-                        ParamInit := 0;
-                ELSE
+        1: 
+                WriteParam(EXECUTE := TRUE, PARAMETERNUMBER := 480, PARAMETERINDEX := 8, VALUE := 23, RAMONLY := 1);
+                
+                IF WriteParam.Done THEN
+                        WriteParam(EXECUTE:=FALSE);
                         ParamInit := ParamInit + 1;
                 END_IF;
-        END_IF;
-
-ELSE
-        WriteParam(EXECUTE := FALSE);
-END_IF;
+                
+        2: 
+                WriteParam(EXECUTE := TRUE, PARAMETERNUMBER := 481, PARAMETERINDEX := 8, VALUE := 40, RAMONLY := 1);
+                
+                IF WriteParam.Done THEN
+                        WriteParam(EXECUTE:=FALSE);
+                        ParamInit := ParamInit + 1;
+                END_IF;
+        3: 
+                WriteParam(EXECUTE := TRUE, PARAMETERNUMBER := 600, PARAMETERINDEX := 0, VALUE := 2, RAMONLY := 1);
+                
+                IF WriteParam.Done THEN
+                        WriteParam(EXECUTE:=FALSE);
+                        ParamInit := ParamInit + 1;
+                END_IF;  
+        4: 
+                WriteParam(EXECUTE := TRUE, PARAMETERNUMBER := 553, PARAMETERINDEX := 0, VALUE := 1, RAMONLY := 1);
+                
+                IF WriteParam.Done THEN
+                        WriteParam(EXECUTE:=FALSE);
+                        ParamInit := ParamInit + 1;
+                END_IF;
+        5: 
+                WriteParam(EXECUTE := TRUE, PARAMETERNUMBER := 553, PARAMETERINDEX := 1, VALUE := 21, RAMONLY := 1);
+                
+                IF WriteParam.Done THEN
+                        WriteParam(EXECUTE:=FALSE);
+                        ParamInit := ParamInit + 1;
+                END_IF;
+        6: 
+                WriteParam(EXECUTE := TRUE, PARAMETERNUMBER := 553, PARAMETERINDEX := 2, VALUE := 22, RAMONLY := 1);
+                
+                IF WriteParam.Done THEN
+                        WriteParam(EXECUTE:=FALSE);
+                        ParamInit := ParamInit + 1;
+                END_IF;
+END_CASE;
 
 
 CASE ConfigSelect OF
@@ -802,73 +789,121 @@ CASE ConfigSelect OF
                 
                 ConfigInit := 1;
                 ConfigSelect := 0;
+                
+        4:      (*Door 3*)  
+                RunFreq := 2000;
+                ClearFreq := 3500;
+                TorqueLimitUp := 2;
+                TorqueLimitDown := 2;
+                MaxJams := 5;
+                HomeFreq := 2000;
+                FloorDeadZone := 100;
+                TopDeadZone := 100;
+                HomingTorqueLimit := 2;
+                
+                EndPos := 10000;
+                RestTime := 2000;
+                JamTime := 2000;
+                
+                ConfigInit := 1;
+                ConfigSelect := 0;
 END_CASE;
 
 (*If the PLC parameters are all blank, it writes the test values to them*)
-(*Select the value for the current write step*)
 CASE ConfigInit OF
-        1:  Line1Val := INT_TO_DINT(RunFreq);
-        2:  Line1Val := INT_TO_DINT(ClearFreq);
-        3:  Line1Val := INT_TO_DINT(TorqueLimitUp);
-        4:  Line1Val := INT_TO_DINT(TorqueLimitDown);
-        5:  Line1Val := INT_TO_DINT(MaxJams);
-        6:  Line1Val := INT_TO_DINT(HomeFreq);
-        7:  Line1Val := FloorDeadZone;
-        8:  Line1Val := TopDeadZone;
-        9:  Line1Val := INT_TO_DINT(HomingTorqueLimit);
-        10: Line1Val := 0;
-        11: Line1Val := EndPos;
-        12: Line1Val := RestTime;
-        13: Line1Val := JamTime;
-END_CASE;
-
-
-(*Steps 1-9 write P355 indexes 0-8*)
-IF (ConfigInit >= 1) AND (ConfigInit <= 9) THEN
-
-        SavePar16(
-                EXECUTE := TRUE,
-                PARAMETERNUMBER := 355,
-                PARAMETERINDEX := ConfigInit - 1,
-                VALUE := DINT_TO_INT(Line1Val),
-                RAMONLY := 0
-        );
-
-        SavePar32(EXECUTE := FALSE);
-
-        IF SavePar16.Done THEN
-                SavePar16(EXECUTE := FALSE);
-                ConfigInit := ConfigInit + 1;
-        END_IF;
-
-
-(*Steps 10-13 write P356 indexes 0-3*)
-ELSIF (ConfigInit >= 10) AND (ConfigInit <= 13) THEN
-
-        SavePar16(EXECUTE := FALSE);
-
-        SavePar32(
-                EXECUTE := TRUE,
-                PARAMETERNUMBER := 356,
-                PARAMETERINDEX := ConfigInit - 10,
-                VALUE := Line1Val,
-                RAMONLY := 0
-        );
-
-        IF SavePar32.Done THEN
-                SavePar32(EXECUTE := FALSE);
-
-                IF ConfigInit = 13 THEN
-                        ConfigInit := 0;
-                ELSE
+        1:
+                SavePar16(EXECUTE := TRUE, PARAMETERNUMBER := 355, PARAMETERINDEX := 0, VALUE := RunFreq, RAMONLY := 0);
+                
+                IF SavePar16.Done THEN
+                        SavePar16(EXECUTE:=FALSE);
                         ConfigInit := ConfigInit + 1;
                 END_IF;
-        END_IF;
-
-ELSE
-        SavePar16(EXECUTE := FALSE);
-        SavePar32(EXECUTE := FALSE);
-END_IF;
+        2:
+                SavePar16(EXECUTE := TRUE, PARAMETERNUMBER := 355, PARAMETERINDEX := 1, VALUE := ClearFreq, RAMONLY := 0);
+                
+                IF SavePar16.Done THEN
+                        SavePar16(EXECUTE:=FALSE);
+                        ConfigInit := ConfigInit + 1;
+                END_IF;
+        3: 
+                SavePar16(EXECUTE := TRUE, PARAMETERNUMBER := 355, PARAMETERINDEX := 2, VALUE := TorqueLimitUp, RAMONLY := 0); 
+                                
+                IF SavePar16.Done THEN
+                        SavePar16(EXECUTE:=FALSE);
+                        ConfigInit := ConfigInit + 1;
+                END_IF; 
+        4:
+                SavePar16(EXECUTE := TRUE, PARAMETERNUMBER := 355, PARAMETERINDEX := 3, VALUE := TorqueLimitDown, RAMONLY := 0);   
+                                
+                IF SavePar16.Done THEN
+                        SavePar16(EXECUTE:=FALSE);
+                        SavePar32(EXECUTE:=FALSE);
+                        ConfigInit := ConfigInit + 1;
+                END_IF;
+        5:
+                SavePar16(EXECUTE := TRUE, PARAMETERNUMBER := 355, PARAMETERINDEX := 4, VALUE := MaxJams, RAMONLY := 0); 
+                
+                IF SavePar16.Done THEN
+                        SavePar16(EXECUTE:=FALSE);
+                        ConfigInit := ConfigInit + 1;
+                END_IF;
+        6:
+                SavePar16(EXECUTE := TRUE, PARAMETERNUMBER := 355, PARAMETERINDEX := 5, VALUE := HomeFreq, RAMONLY := 0);
+                
+                IF SavePar16.Done THEN
+                        SavePar16(EXECUTE:=FALSE);
+                        ConfigInit := ConfigInit + 1;
+                END_IF;   
+        7:
+                SavePar16(EXECUTE := TRUE, PARAMETERNUMBER := 355, PARAMETERINDEX := 6, VALUE := DINT_TO_INT(FloorDeadZone), RAMONLY := 0);   
+                
+                IF SavePar16.Done THEN
+                        SavePar16(EXECUTE:=FALSE);
+                        ConfigInit := ConfigInit + 1;
+                END_IF;
+        8:
+                SavePar16(EXECUTE := TRUE, PARAMETERNUMBER := 355, PARAMETERINDEX := 7, VALUE := DINT_TO_INT(TopDeadZone), RAMONLY := 0);
+                
+                IF SavePar16.Done THEN
+                        SavePar16(EXECUTE:=FALSE);
+                        ConfigInit := ConfigInit + 1;
+                END_IF;   
+        9:
+                SavePar16(EXECUTE := TRUE, PARAMETERNUMBER := 355, PARAMETERINDEX := 8, VALUE := HomingTorqueLimit, RAMONLY := 0);  
+                
+                IF SavePar16.Done THEN
+                        SavePar16(EXECUTE:=FALSE);
+                        ConfigInit := ConfigInit + 1;
+                END_IF;   
+        10:
+                SavePar32(EXECUTE := TRUE, PARAMETERNUMBER := 356, PARAMETERINDEX := 0, VALUE := 0, RAMONLY := 0);  
+                
+                IF SavePar32.Done THEN
+                        SavePar32(EXECUTE:=FALSE);
+                        ConfigInit := ConfigInit + 1;
+                END_IF; 
+        11:
+                SavePar32(EXECUTE := TRUE, PARAMETERNUMBER := 356, PARAMETERINDEX := 1, VALUE := EndPos, RAMONLY := 0);  
+                
+                IF SavePar32.Done THEN
+                        SavePar32(EXECUTE:=FALSE);
+                        ConfigInit := ConfigInit + 1;
+                END_IF; 
+        12:
+                SavePar32(EXECUTE := TRUE, PARAMETERNUMBER := 356, PARAMETERINDEX := 2, VALUE := RestTime, RAMONLY := 0);  
+                
+                IF SavePar32.Done THEN
+                        SavePar32(EXECUTE:=FALSE);
+                        ConfigInit := ConfigInit + 1;
+                END_IF; 
+        13:
+                SavePar32(EXECUTE := TRUE, PARAMETERNUMBER := 356, PARAMETERINDEX := 3, VALUE := JamTime, RAMONLY := 0);  
+                
+                IF SavePar32.Done THEN
+                        SavePar32(EXECUTE:=FALSE);
+                        ConfigInit := 0;
+                END_IF; 
+END_CASE;
 
 (*4. ----------------------------Display and information--------------------------------*)
 
@@ -1560,4 +1595,4 @@ IF FB_Power.Status THEN
         
         WritePosExecute := TRUE;
 END_IF;
-]]></Program><Checksum>946BF23C5E38CFC4DA943FE1B05018827F2283F4AE640E1770977B11</Checksum></PLCFile></NordCon>
+]]></Program><Checksum>91246E39BD25CD010F97D37A5DE263E573EDDA0CCD0685C1A12F6353</Checksum></PLCFile></NordCon>
