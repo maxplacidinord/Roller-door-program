@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="08.10.2026 16:24:20"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="09.10.2026 11:25:30"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 08/10/2026 16:24:20
-  DATA = 0001FF1602721CC11A0A08101803B7F600001A00000000000000000000000000
+  DATE = 09/10/2026 11:25:30
+  DATA = 0001FF1502641CC91A0A090B18110AEB00001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
   PLCTYPE = 42
@@ -25,7 +25,6 @@ END_HEADER
 (* @Variablen declarations *)
 VAR_ACCESS 
   _5_State_digital_input: INT;
-  _0_Set_digital_output: INT;
 END_VAR
 
 VAR 
@@ -129,7 +128,6 @@ VAR CONSTANT
   RestTimeStr: STRING := ' RestTime';
   JamTimeStr: STRING := ' JamTime';
   EndPosStr: STRING := ' EndPos';
-  ActualPosStr: STRING := ' SavedPos';
   ConfigSelectStr: STRING := ' LoadConf';
 END_VAR
 
@@ -140,7 +138,6 @@ VAR
   IsHoming: BOOL := 0;
   UpEdge: R_TRIG;
   DownEdge: R_TRIG;
-  DI2Edge: R_TRIG;
   DI5Edge: R_TRIG;
   DI6Edge: R_TRIG;
   TorqueEdge: R_TRIG;
@@ -216,7 +213,6 @@ END_VAR
 (* @Displayformat *)
 (*
 _5_State_digital_input=0
-_0_Set_digital_output=0
 SetFreq=0
 RunFreq=0
 ClearFreq=0
@@ -363,7 +359,6 @@ HomeTorqueLimitStr=0
 RestTimeStr=0
 JamTimeStr=0
 EndPosStr=0
-ActualPosStr=0
 ConfigSelectStr=0
 ParPageValue.ENABLE=0
 ParPageValue.VALUE=0
@@ -390,8 +385,6 @@ UpEdge.CLK=0
 UpEdge.Q=0
 DownEdge.CLK=0
 DownEdge.Q=0
-DI2Edge.CLK=0
-DI2Edge.Q=0
 DI5Edge.CLK=0
 DI5Edge.Q=0
 DI6Edge.CLK=0
@@ -896,7 +889,7 @@ CASE Page OF
                         TEXT := ClearFreqStr);       
                 ParPageValue(ENABLE := L2Enabled, MODE := 0, ROW := 1, COLUMN := 12, POINT := 0, LENGTH := 6,
                         VALUE := INT_TO_DINT(ClearFreq) * 100000 / 16384000);
-                Display1(ENABLE := TRUE, CLEAR := ClearDisplay, ROW := 0,COLUMN := 18,
+                Display1(ENABLE := TRUE, CLEAR := ClearDisplay, ROW := 1,COLUMN := 18,
                         TEXT := PercentChar);
                 Display1(ENABLE := TRUE, CLEAR := FALSE, ROW := 1, COLUMN := 19,
                         TEXT := MidChar);         
@@ -943,7 +936,7 @@ CASE Page OF
                         TEXT := HomeFreqStr);        
                 ParPageValue(ENABLE := L2Enabled,MODE := 0,ROW := 1,COLUMN := 12,POINT := 0,LENGTH := 6,
                         VALUE := INT_TO_DINT(HomeFreq) * 100000 / 16384000);
-                Display2(ENABLE := TRUE, CLEAR := ClearDisplay, ROW := 0,COLUMN := 18,
+                Display2(ENABLE := TRUE, CLEAR := ClearDisplay, ROW := 1,COLUMN := 18,
                         TEXT := PercentChar);
                 Display2(ENABLE := TRUE, CLEAR := FALSE, ROW := 1, COLUMN := 19,
                         TEXT := MidChar);
@@ -1265,7 +1258,6 @@ IF Page > 0 THEN
                 TEXT := ModChar);
         END_IF;
         
-        
 END_IF;
 
 (*Parameter 355 indexes take 16 bit values*)
@@ -1279,7 +1271,7 @@ SavePar16(
 
 (*Parameter 356 indexes take 32 bit values*)                        
 SavePar32(
-        EXECUTE := IsSaving AND ((Page = 3) AND (RowIndex > 1)) AND ((Page = 4) AND (RowIndex < 2)) AND (State <> 0),
+        EXECUTE := IsSaving AND (((Page = 3) AND (RowIndex > 1)) OR ((Page = 4) AND (RowIndex < 2))) AND (State <> 0),
         PARAMETERNUMBER := 356,
         PARAMETERINDEX := (RowIndex - 2*(3-Page) - 1),
         VALUE := EditBuffer,
@@ -1544,4 +1536,4 @@ IF FB_Power.Status THEN
         
         WritePosExecute := TRUE;
 END_IF;
-]]></Program><Checksum>02D577E78CA2E43A84F3505E85061BEDB533CF20591F75695FE1D739</Checksum></PLCFile></NordCon>
+]]></Program><Checksum>1E41A4A19E15CCE33B1EB05E8F8A9BE9AE65DF48EF35DC2B34AEB002</Checksum></PLCFile></NordCon>
