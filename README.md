@@ -17,6 +17,10 @@ and `DIN2`/`DIN3` belong to the HTL encoder, so only `DIN1` (open command) and `
 sensor) carry signals — the close command comes from the PAR-5 only (see the input table
 below). See `AGENTS.md` for the exact differences.
 
+Both files are written for the drive's **8128-byte PLC program budget** (BU 0550 §4.1.1). The
+parameter-row display and the preset loader were reduced to fit that budget — see
+`AGENTS.md` § *PLC memory* for what was cut.
+
 ## Project information
 
 | Item | Value |
@@ -214,8 +218,8 @@ The main page displays the current operating information, including:
 
 ### Parameter page 4
 
-- Last saved position
-- Three currently unused display rows
+- Preset selector (`LoadConf`): selecting a preset number writes that preset's parameter set
+  (the values shared by all presets, plus any per-door differences) and saves it
 
 ### Editing parameters
 
@@ -228,7 +232,7 @@ The main page displays the current operating information, including:
 
 The selected parameter is marked with `>`. While editing, it is marked with `*`, and its label flashes.
 
-Values on pages 1 and 2 are written to `P355`. Values on page 3 are written to `P355` or `P356`, depending on the selected row. Page 4 is intended as a position-information page.
+Values on pages 1 and 2 are written to `P355`. Values on page 3 are written to `P355` or `P356`, depending on the selected row. Page 4 is the preset selector: pressing OK on it writes the selected preset's values to `P355`/`P356` and saves them.
 
 ## Homing
 

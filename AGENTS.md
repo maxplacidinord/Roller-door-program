@@ -92,6 +92,36 @@ END_HEADER
   comments. Restoring richer comments therefore does not change the memory figure -
   confirm in NORDCON after compiling.
 
+### Memory reduction (October 2026)
+
+The full-feature snapshot was 107% and the trimmed `500P - FINAL` draft sat at **100.1%**
+after the preset and `ParamInit` work, so the logic shared by both files was reduced
+without dropping a feature:
+
+- **Preset loader**: the five `CASE ConfigSelect` branches were identical copies of the
+  same 13 statements. The shared values are now written once and the `CASE` is replaced by
+  a range check (`1 <= ConfigSelect <= MaxPreset`), with a comment marking where per-door
+  overrides belong. `TargetPos := EndPos` moved into the same block.
+- **ParameterBox rows**: a row used up to four function-block calls (label, value, the `%`
+  sign at column 18, the scroll-bar character at column 19). The `%` and the bar character
+  are now part of the fixed 20-character label constant, so a row is one `PBoxText` call
+  plus one `PBoxValue` call. The five character constants that became unused
+  (`PercentChar`, `EndChar`, `MidChar`, `UpArrowChar`, `DownArrowChar`) were deleted.
+- **Repeated percentage maths**: `INT_TO_DINT(x) * 100000 / 16384000` was calculated twice
+  per percent row (once for the display, once for `Line*Val`). `Line*Val` is now
+  calculated once per page and passed to both.
+
+Net effect: 16 fewer function-block calls and about 117 fewer statements (roughly 9% of the
+compiled statements). Both `.nstx` files carry the same reduction.
+
+### `ParamInit` guard bug
+
+The `ParamInit` MUX tables were extended to 8 values (the `P420[-04]`/`[-05]` entries) but
+the end-of-sequence test stayed `IF ParamInit >= 6 THEN`, so the last two writes
+(`P553[-02] = 21`, `P553[-03] = 22`) never ran. Both are required by BU 0550 §4.3.3 for the
+positioning function blocks. The 5xxP file now ends at `>= 8`; the 2xxE port (11 values)
+ends at `>= 11`. When the MUX tables are extended, raise the test with them.
+
 ## SK 200E port (`Roller Door - 200E.nstx`)
 
 Derived from `Roller Door - 500P - FINAL.nstx`. The control logic is the same except for
@@ -156,10 +186,11 @@ POSICON).
   `MC_WriteParameter_16/32`, `FB_ResetPosition`, `FB_STRINGToPBOX`, `FB_DINTToPBOX`) and
   every other process value used is supported in the 2xxE column of the BU 0550 §4.3
   matrices / §4.5 tables.
-- PLC memory: the SK 2xxE(-FDS) has the same **8128 bytes** as the SK 5xxP (BU 0550 §4.1.1),
-  so memory is not a constraint for the port, but the `ParamInit` MUX tables grew from 6 to 11
-  values (four `P420` entries and `P351`) - check the memory figure NORDCON reports after
-  compiling.
+- PLC memory: the SK 2xxE(-FDS) has the same **8128 bytes** as the SK 5xxP (BU 0550 §4.1.1).
+  Both files were at or over the limit after the preset and auto-commissioning work; the
+  reduction described under "PLC memory" above brought both back under. The port's
+  `ParamInit` MUX tables hold 11 values (four `P420` entries and `P351`) and cannot be
+  trimmed further without dropping a drive set-up write.
 
 ## Commenting conventions in `@Program`
 
