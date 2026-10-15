@@ -109,23 +109,48 @@ PAR-5 commands provide equivalent manual control:
 
 ### Automatic parameter overwrites
 
-The program writes the following parameters during initialisation:
+The program writes the following parameters during initialisation (RAM only, once per PLC
+start):
 
 | Parameter | Value | Purpose |
 |---|---:|---|
-| `P480[-09]` | `23` | Marker 1 action: reference point (reached) |
+| `P420[-01..-04]` | `0` | Switch off the drive's own digital-input functions (SK 200E port) |
+| `P480[-09]` | `23` | Marker 1 response: reference point (reached) |
 | `P481[-09]` | `40` | Marker 1 trigger: output via PLC (SK 5xxP) |
 | `P481[-07]` | `40` | Marker 1 trigger: output via PLC (SK 200E port) |
-| `P600` | `2` | POSICON position-control variant |
+| `P600` | `2` | Position control on (linear ramp, setpoint frequency) |
 | `P553[-01..-03]` | `1`, `21`, `22` | Motion-control setpoint routing |
+| `P351` | `0` | Control word and main setpoint from the PLC (SK 200E port) |
 
 The Structured Text parameter function blocks use zero-based array indexes, so `[-09]` is
-passed to the function block as index `8` and `[-07]` as index `6`. On the SK 500P these
-parameters set up the marker-1 reference-point pulse used by homing: the PLC raises marker 1
-through `_39_PLC_set_digital_output_bus.8`, and `P480[-09] = 23` makes the drive treat that
-as "reference point reached". On the SK 200E the same pulse is raised through
-`_0_Set_digital_output.7` (marker 1 = BusIO Out Bit 6) and the trigger parameter moves to
-`P481[-07]`.
+passed to the function block as index `8`, `[-07]` as index `6` and `[-01]` as index `0`.
+On the SK 500P these parameters set up the marker-1 reference-point pulse used by homing:
+the PLC raises marker 1 through `_39_PLC_set_digital_output_bus.8`, and `P480[-09] = 23`
+makes the drive treat that as "reference point reached". On the SK 200E the same pulse is
+raised through `_0_Set_digital_output.7` (marker 1 = BusIO Out Bit 6) and the trigger
+parameter moves to `P481[-07]`.
+
+The SK 200E port also switches the drive's own input functions off (`P420[-01..-04] = 0`).
+`DIN2`/`DIN3` are shared with the HTL encoder, and on the SK 2xxE encoder evaluation is
+always active, so those inputs must not carry digital functions (BU 0210 §3.4) — otherwise
+every encoder pulse would also trigger "Enable left" and "Fixed frequency 1". `DIN1` and
+`DIN4` are read by the PLC only, so their factory functions ("Enable right", "Fixed
+frequency 2") are switched off as well.
+
+### Settings the program cannot make
+
+These are device settings, not program values — check them before the first run:
+
+| Parameter | Value | Note |
+|---|---|---|
+| `P350` | `1` | PLC functionality on. With `P350 = 0` the internal PLC does not run, so the program cannot write it itself. |
+| `P301` | *encoder pulses* | `Incremental encoder`: pulses per revolution of the HTL encoder (factory setting = `6`, i.e. `4096` pulses). |
+| `P604` | `0` | `Encoder type` = incremental (factory setting). |
+| encoder track 0 | *not wired* | Track 0 would occupy `DIN1`, which is the open-command input (BU 0210 §3.4). |
+
+Because the program writes its parameters to RAM, a drive restart with the PLC stopped
+reverts to the device's stored values; use NORDCON or the ParameterBox to save them
+permanently if the drive is also to run without the PLC program.
 
 ### Adjustable parameters: P355
 

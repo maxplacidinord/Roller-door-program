@@ -528,9 +528,35 @@ logic is carried over. The platform differences handled were:
        homing reference in both directions - the direction of travel separates them - and
        shuts the drive down (E023) if it is triggered while the door is running.
 
-PARAMETER OVERWRITES (RAM only, once per PLC start):
-P480[-09] = 23   Marker 1 action  = Reference point (reached)
-P481[-07] = 40   Marker 1 trigger = Output via PLC
+4. DRIVE-SIDE DIGITAL-INPUT FUNCTIONS - switched off at PLC start.
+   The SK 5xxP has its own terminals for the encoder. On the SK 2xxE DIN2/DIN3 are shared
+   with the HTL encoder and the encoder evaluation is always active, so the digital
+   functions of DIN2/DIN3 must be disabled (BU 0210 3.4) - otherwise every encoder pulse
+   would also trigger "Enable left" and "Fixed frequency 1". The factory settings of the
+   other two inputs (DIN1 = "Enable right", DIN4 = "Fixed frequency 2") would likewise work
+   the drive behind the PLC's back, so all four input functions are set to 0.
+
+AUTO-COMMISSIONING - written to the drive by the program (RAM only, once per PLC start):
+P420[-01] = 0    Digital input 1 function off (open command is read by the PLC)
+P420[-02] = 0    Digital input 2 function off (HTL encoder track A)
+P420[-03] = 0    Digital input 3 function off (HTL encoder track B)
+P420[-04] = 0    Digital input 4 function off (limit sensor is read by the PLC)
+P480[-09] = 23   Marker 1 response = Reference point (reached)  (BU 0200 P480)
+P481[-07] = 40   Marker 1 trigger  = Output via PLC            (BU 0200 P481)
+P600      = 2    Position control on (linear ramp, setpoint frequency)  (BU 0210 6.1.5)
+P553[-01] = 1    PLC setpoint 1 = setpoint frequency  (BU 0550 4.3.3 requirement)
+P553[-02] = 21   PLC setpoint 2 = reserved for POSICON
+P553[-03] = 22   PLC setpoint 3 = reserved for POSICON
+P351      = 0    Control word and main setpoint from the PLC  (BU 0550 4.3.3 requirement)
+
+DEVICE SETTINGS THE PROGRAM CANNOT MAKE (check before the first run):
+P350 = 1   "PLC functionality" on. With P350 = 0 the internal PLC does not run at all, so
+           the program cannot write it - set it with NORDCON or the ParameterBox.
+P301 = 6   "Incremental encoder": pulses per revolution of the HTL encoder (factory
+           setting 6 = 4096 pulses, BU 0200 P301).
+P604 = 0   "Encoder type" = incremental (factory setting).
+           Do not wire track 0 of the encoder: it would occupy DIN1, which is the open
+           command input (BU 0210 3.4).
 
 ADJUSTABLE PARAMETERS:
 P355[01] = Variable - RunFreq                                           [Test value: 2000]  Fraction out of 16384
@@ -684,21 +710,32 @@ ELSE
 END_IF;
 
 (*RAM-only drive set-up, once per PLC start (ParamInit init value = 1)
-  Step: 1      2      3     4      5      6
-  Par:  P480   P481   P600  P553   P553   P553
-  Idx:  [09]   [07]   [01]  [01]   [02]   [03]
-  Val:  23     40     2     1      21     22  *)
+  Step:  1     2     3     4     5      6      7     8      9     10    11
+  Par:  P420  P420  P420  P420   P480   P481   P600   P553   P553  P553   P351
+  Idx:  [01]  [02]  [03]  [04]   [09]   [07]   [01]   [01]   [02]  [03]   [01]
+  Val:   0     0     0     0      23     40     2      1      21    22     0
+  P420[-01..-04] = 0: digital input functions off. The PLC reads DIN1 (open command) and
+      DIN4 (limit sensor); DIN2/DIN3 carry the HTL encoder, whose evaluation is always
+      active, so their digital functions must be disabled (BU 0210 3.4), otherwise the
+      encoder pulses also trigger "Enable left" / "Fixed frequency 1".
+  P480[-09] = 23: marker 1 response = reference point (reached)   (BU 0200 P480)
+  P481[-07] = 40: marker 1 trigger  = output via PLC             (BU 0200 P481)
+  P600 = 2:       position control on, linear ramp, setpoint frequency  (BU 0210 6.1.5)
+  P553[-01] = 1, P553[-02] = 21, P553[-03] = 22  (BU 0550 4.3.3 requirement)
+  P351 = 0:       control word and main setpoint from the PLC     (BU 0550 4.3.3)
+  P350 = 1 (PLC functionality on) must be set in the device: with P350 = 0 the internal
+  PLC does not run, so the program cannot set it itself.            (BU 0200 P350)  *)
 IF ParamInit > 0 THEN
         WriteParam(
                 EXECUTE := TRUE,
-                PARAMETERNUMBER := MUX(ParamInit - 1, 480, 481, 600, 553, 553, 553),
-                PARAMETERINDEX := MUX(ParamInit - 1, 8, 6, 0, 0, 1, 2),
-                VALUE := MUX(ParamInit - 1, 23, 40, 2, 1, 21, 22),
+                PARAMETERNUMBER := MUX(ParamInit - 1, 420, 420, 420, 420, 480, 481, 600, 553, 553, 553, 351),
+                PARAMETERINDEX := MUX(ParamInit - 1, 0, 1, 2, 3, 8, 6, 0, 0, 1, 2, 0),
+                VALUE := MUX(ParamInit - 1, 0, 0, 0, 0, 23, 40, 2, 1, 21, 22, 0),
                 RAMONLY := 1
         );
         IF WriteParam.Done OR WriteParam.Error THEN
                 WriteParam(EXECUTE := FALSE);
-                IF ParamInit >= 6 THEN
+                IF ParamInit >= 11 THEN
                         ParamInit := 0;
                 ELSE
                         ParamInit := ParamInit + 1;

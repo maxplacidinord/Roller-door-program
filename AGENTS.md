@@ -106,6 +106,7 @@ POSICON).
 | 2 | `MC_Home` | `MODE := 16` (byte, P623 = 16) | `MODE := 0` (byte - the FB rejects the BOOL literal) |
 | 3 | Close command | `_5_State_digital_input`.1 (DIN2) | **removed** - DIN2/DIN3 are the HTL encoder, so close is PAR-5 only |
 | 4 | Limit sensor | `_5_State_digital_input`.4/.5 (DIN5/DIN6) | `.3` (DIN4) for **both** - a default SK 2xxE has no DIN5/DIN6 |
+| 5 | Drive set-up (auto-commissioning) | marker parameters plus `P600`, `P553[-01..-03]` | adds `P420[-01..-04] = 0` (drive's own input functions off) and `P351 = 0` |
 
 - A default SK 2xxE only provides DIN1…DIN4 (bits 0…3), and DIN2/DIN3 belong to the HTL
   encoder (BU 0200 §2.5). Only DIN1 and DIN4 are usable, so the port puts the open command
@@ -126,6 +127,25 @@ POSICON).
   §4.5 process-value table lists the type as UINT.
 - `P480[-09]` (marker 1 action) is `23` = reference point, unchanged. Only the P481
   trigger moves array: marker 1 is `[-07]` on the SK 2xxE, `[-09]` on the SK 5xxP.
+- The auto-commissioning block (RAM writes, once per PLC start) is now 11 steps: `P420[-01]`,
+  `[-02]`, `[-03]`, `[-04]` = 0, then `P480[-09] = 23`, `P481[-07] = 40`, `P600 = 2`,
+  `P553[-01..-03] = 1/21/22` and `P351 = 0`. Every one of those is valid on the SK 2xxE:
+  `P420`/`P480` take the POSICON input functions (22 = reference point run, 23 = reference
+  point), `P481` takes the output functions (40 = "Output via PLC", range 0…61), `P600` =
+  "Position control" (range 0…4, `2` = linear ramp with setpoint frequency), `P553` = "PLC set
+  values" (range 0…36, `[-01] = 1` = setpoint frequency, `[-02]/[-03]` = 21/22 = reserved for
+  POSICON). References: BU 0200 P420/P480/P481/P600/P553, BU 0210 §3.4/§6.1.5, BU 0550 §4.3.3.
+- `P420[-01..-04] = 0` is SK 2xxE-specific and required: DIN2/DIN3 are shared with the HTL
+  encoder and encoder evaluation is **always** active, so those two inputs must not have
+  digital functions (BU 0210 §3.4) - otherwise every encoder pulse also triggers "Enable
+  left"/"Fixed frequency 1" (the factory settings of DIN2/DIN3). DIN1/DIN4 are read by the PLC
+  only, so their factory functions ("Enable right", "Fixed frequency 2") are switched off too,
+  otherwise they would work the drive behind the PLC's back.
+- Settings the program cannot make (device settings, check before the first run): `P350 = 1`
+  (PLC functionality - with `P350 = 0` the PLC does not run at all, so it cannot write this
+  itself), `P301` = HTL encoder pulses per revolution (factory 6 = 4096), `P604 = 0` = encoder
+  type incremental (factory), and encoder track 0 must stay unwired because it uses DIN1, the
+  open-command input (BU 0210 §3.4).
 - `MC_Home` keeps its original call, only the `MODE` value changed: `16` (P623 = 16) became
   `0`. BU 0550 §4.3.3.3 lists the SK 2xxE with the standard `MC_Home`, but the FB in NORDCON
   takes a numeric `MODE` there as well and rejects the BOOL literal `FALSE` with "Bool cannot
@@ -137,7 +157,9 @@ POSICON).
   every other process value used is supported in the 2xxE column of the BU 0550 §4.3
   matrices / §4.5 tables.
 - PLC memory: the SK 2xxE(-FDS) has the same **8128 bytes** as the SK 5xxP (BU 0550 §4.1.1),
-  so memory is not a constraint for the port.
+  so memory is not a constraint for the port, but the `ParamInit` MUX tables grew from 6 to 11
+  values (four `P420` entries and `P351`) - check the memory figure NORDCON reports after
+  compiling.
 
 ## Commenting conventions in `@Program`
 
