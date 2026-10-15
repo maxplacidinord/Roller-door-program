@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="09.10.2026 11:25:30"/><Program Language="ST"><![CDATA[(* @Header *)
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="15.10.2026 12:41:24"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 09/10/2026 11:25:30
-  DATA = 0001FF1502641CC91A0A090B18110AEB00001A00000000000000000000000000
+  DATE = 15/10/2026 12:41:24
+  DATA = 0001FF15023E1CEA1A0A0F0C2911DDF800001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
   PLCTYPE = 42
@@ -156,10 +156,15 @@ VAR
   IsParBoxOn: BOOL := 1;
   IsEditing: BOOL := 0;
   IncTimer: TON;
+  ScrollTimer: TON;
   Inc: INT := 1;
   FlashTimer: TON;
   IncLvl: INT := 0;
   EditBuffer: DINT := 0;
+  ScrollDirection: INT := 0; (* -1 = up, 1 = down *)
+  ScrollRepeatActive: BOOL := 0;
+  ScrollUpEvent: BOOL := 0;
+  ScrollDownEvent: BOOL := 0;
 END_VAR
 
 VAR CONSTANT
@@ -178,7 +183,6 @@ VAR
   SaveIndex: INT := 0;
   SaveIs32: BOOL := 0;
   SaveFailed: BOOL := 0;
-  SaveErrorID: INT := 0;
   SavePar16: MC_WriteParameter_16;
   SavePar32: MC_WriteParameter_32;
   Line1Val: DINT;
@@ -196,6 +200,8 @@ VAR CONSTANT
   PercentChar: STRING := %;
   IncTime: DINT := 500;
   FlashTime: DINT := 1500;
+  ScrollInitialTime: DINT := 1500; (* milliseconds before first repeat *)
+  ScrollRepeatTime: DINT := 1000; (* milliseconds between repeated steps *)
   MaxPreset: DINT := 8;
 END_VAR
 
@@ -345,20 +351,25 @@ SelChar=0
 ModChar=0
 IsParBoxOn=0
 IsEditing=0
-IncTime=0
 IncTimer.IN=0
 IncTimer.PT=0
 IncTimer.Q=0
 IncTimer.ET=0
+ScrollTimer.IN=0
+ScrollTimer.PT=0
+ScrollTimer.Q=0
+ScrollTimer.ET=0
 Inc=0
-FlashTime=0
-MaxPreset=0
 FlashTimer.IN=0
 FlashTimer.PT=0
 FlashTimer.Q=0
 FlashTimer.ET=0
 IncLvl=0
 EditBuffer=0
+ScrollDirection=0
+ScrollRepeatActive=0
+ScrollUpEvent=0
+ScrollDownEvent=0
 BlankString=0
 L1Enabled=0
 L2Enabled=0
@@ -371,7 +382,6 @@ SaveValue=0
 SaveIndex=0
 SaveIs32=0
 SaveFailed=0
-SaveErrorID=0
 SavePar16.EXECUTE=0
 SavePar16.PARAMETERNUMBER=0
 SavePar16.PARAMETERINDEX=0
@@ -400,6 +410,11 @@ MidChar=0
 UpArrowChar=0
 DownArrowChar=0
 PercentChar=0
+IncTime=0
+FlashTime=0
+ScrollInitialTime=0
+ScrollRepeatTime=0
+MaxPreset=0
 WriteParam.EXECUTE=0
 WriteParam.PARAMETERNUMBER=0
 WriteParam.PARAMETERINDEX=0
@@ -413,6 +428,7 @@ ParamInit=0
 ConfigInit=0
 ConfigSelect=0
 *)
+
 (* @Debuglist *)
 (*
 *)
@@ -459,7 +475,7 @@ ConfigSelect=0
  Description:   Automatic opening and closing with position control,
                 jam detection, jam clearing, homing, auto-commisioning and PAR-5 HMI supported
  Author:        Max Placidi
- Version:       1.3
+ Version:       1.5
  Date:          04/08/2026
 
  Program Sections
@@ -524,6 +540,7 @@ E23 Flag 1: Max jam clearing attempts reached.
    - Presets: common values first, then each CASE entry overrides only what differs.
    - ParamInit RAM writes run once per PLC start (MUX tables instead of CASE).
    - Page 4 reduced to the preset selector row only.
+   - LoadConf is a one-shot command: presets apply when selection > 0, then P355[10] is saved as 0.
    - Removed the continuous floor-position Init reset that restarted ParamInit and blocked edits.
    Not compiled or commissioned. Check PLC memory use in NORDCON after compiling.
    Reference: NORD BU 0550 4.3.3.15 (pp.77-78), 4.4.1.6/4.4.1.9 (pp.121-123), 4.8 (pp.181-184).
@@ -554,9 +571,9 @@ AND NOT IsHoming AND Power THEN
                 MoveExecute := FALSE;
                 JamCount := JamCount + 1;
                 IF State = 1 THEN
-                        State := 5;
+                        State := 5; (*Clear jam after going up*)
                 ELSE
-                        State := 6;
+                        State := 6; (*Clear jam after clearing a jam while going up*)
                 END_IF;
 
         (*Jamming when closing*)
@@ -565,7 +582,7 @@ AND NOT IsHoming AND Power THEN
                 SetFreq := ClearFreq;
                 MoveExecute := FALSE;
                 Power := FALSE;
-                State := 4;
+                State := 4; (*Clear jam after going down*)
         END_IF;
 END_IF;
 
@@ -597,10 +614,14 @@ IF NOT Init THEN
                 HomingTorqueLimit := _123_PLC_P355_9;
                 ConfigSelect := _124_PLC_P355_10;
 
-                (*Blank parameter set (no end position): load and save preset 1*)
+                (*LoadConf is a command register: clear an old nonzero value on startup.
+                  A blank drive instead loads the default preset, whose final write clears it.*)
                 IF _126_PLC_P356_2 <= 0 THEN
                         ConfigSelect := 1;
                         ConfigInit := 20;
+                ELSIF ConfigSelect <> 0 THEN
+                        ConfigSelect := 0;
+                        ConfigInit := 13;
                 END_IF;
 
                 Init := TRUE;
@@ -642,49 +663,108 @@ IF ParamInit > 0 THEN
         END_IF;
 END_IF;
 
-(*Preset loading: runs once per request (ConfigInit = 20).
-  Common values are loaded first; each CASE entry overrides only what differs.
-  To add a preset: add a CASE entry here and raise MaxPreset (VAR CONSTANT).*)
+(*Preset loading: each selection assigns a complete independent parameter set.
+  The following values are the defaults already present in the supplied draft;
+  replace individual values with the commissioned settings for each door.
+  Every valid selection starts the same serialized save list: P355[01..10] and P356[02..04].*)
 IF ConfigInit = 20 THEN
-        (*Preset 1 - Test config / common values*)
-        RunFreq := 2000;
-        ClearFreq := 3500;
-        TorqueLimitUp := 2;
-        TorqueLimitDown := 2;
-        MaxJams := 5;
-        HomeFreq := 2000;
-        FloorDeadZone := 100;
-        TopDeadZone := 100;
-        HomingTorqueLimit := 2;
-        EndPos := 10000;
-        RestTime := 2000;
-        JamTime := 2000;
-
         CASE ConfigSelect OF
+                1: (*Test configuration*)
+                        RunFreq := 2000;
+                        ClearFreq := 3500;
+                        TorqueLimitUp := 2;
+                        TorqueLimitDown := 2;
+                        MaxJams := 5;
+                        HomeFreq := 2000;
+                        FloorDeadZone := 100;
+                        TopDeadZone := 100;
+                        HomingTorqueLimit := 2;
+                        EndPos := 10000;
+                        RestTime := 2000;
+                        JamTime := 2000;
+                        SaveOne := FALSE;
+                        ConfigInit := 1;
+
                 2: (*Door 2*)
+                        RunFreq := 2000;
+                        ClearFreq := 3500;
+                        TorqueLimitUp := 2;
+                        TorqueLimitDown := 2;
+                        MaxJams := 5;
+                        HomeFreq := 2000;
+                        FloorDeadZone := 100;
+                        TopDeadZone := 100;
+                        HomingTorqueLimit := 2;
                         EndPos := 10000;
+                        RestTime := 2000;
+                        JamTime := 2000;
+                        SaveOne := FALSE;
+                        ConfigInit := 1;
+
                 3: (*Door 3*)
+                        RunFreq := 2000;
+                        ClearFreq := 3500;
+                        TorqueLimitUp := 2;
+                        TorqueLimitDown := 2;
+                        MaxJams := 5;
+                        HomeFreq := 2000;
+                        FloorDeadZone := 100;
+                        TopDeadZone := 100;
+                        HomingTorqueLimit := 2;
                         EndPos := 10000;
+                        RestTime := 2000;
+                        JamTime := 2000;
+                        SaveOne := FALSE;
+                        ConfigInit := 1;
+
                 4: (*Door 4*)
+                        RunFreq := 2000;
+                        ClearFreq := 3500;
+                        TorqueLimitUp := 2;
+                        TorqueLimitDown := 2;
+                        MaxJams := 5;
+                        HomeFreq := 2000;
+                        FloorDeadZone := 100;
+                        TopDeadZone := 100;
+                        HomingTorqueLimit := 2;
                         EndPos := 10000;
+                        RestTime := 2000;
+                        JamTime := 2000;
+                        SaveOne := FALSE;
+                        ConfigInit := 1;
+
                 5: (*Door 5*)
+                        RunFreq := 2000;
+                        ClearFreq := 3500;
+                        TorqueLimitUp := 2;
+                        TorqueLimitDown := 2;
+                        MaxJams := 5;
+                        HomeFreq := 2000;
+                        FloorDeadZone := 100;
+                        TopDeadZone := 100;
+                        HomingTorqueLimit := 2;
                         EndPos := 10000;
-                6: (*Door 6*)
-                        EndPos := 10000;
-                7: (*Door 7*)
-                        EndPos := 10000;
-                8: (*Door 8*)
-                        EndPos := 10000;
+                        RestTime := 2000;
+                        JamTime := 2000;
+                        SaveOne := FALSE;
+                        ConfigInit := 1;
+                        
+        ELSE
+                (*Invalid selector: do not start a preset write sequence.*)
+                ConfigSelect := 0;
+                ConfigInit := 0;
         END_CASE;
 
-        TargetPos := EndPos;
-        SaveOne := FALSE;
-        ConfigInit := 1;
+        IF ConfigInit = 1 THEN
+                TargetPos := EndPos;
+        END_IF;
 END_IF;
+
 
 (*Parameter save sequencer. One FB call per scan and one latched value per request.
   Steps 1-9 -> P355[01..09] (indexes 0..8); steps 10-12 -> P356[02..04]
-  (indexes 1..3); step 13 -> P355[10] (index 9). WriterPhase 0 prepares,
+  (indexes 1..3); step 13 -> P355[10] (index 9), written as zero to re-arm LoadConf.
+  WriterPhase 0 prepares,
   1 waits for DONE/ERROR, 2 supplies a full EXECUTE-low scan before advancing.*)
 WriterReleaseScan := (WriterPhase = 2);
 
@@ -706,14 +786,14 @@ AND (ParamInit = 0) AND NOT WritePos.Busy THEN
                         10: SaveValue := EndPos;
                         11: SaveValue := RestTime;
                         12: SaveValue := JamTime;
-                        13: SaveValue := INT_TO_DINT(ConfigSelect);
+                        13: SaveValue := 0; (*Clear P355[10] LoadConf command*)
                 END_CASE;
         END_IF;
 
         IF (ConfigInit <= 9) OR (ConfigInit = 13) THEN
                 SaveIs32 := FALSE;
                 IF ConfigInit = 13 THEN
-                        SaveIndex := 9;
+                        SaveIndex := 9; (*P355[10], zero-based index 9*)
                 ELSE
                         SaveIndex := ConfigInit - 1;
                 END_IF;
@@ -723,7 +803,6 @@ AND (ParamInit = 0) AND NOT WritePos.Busy THEN
         END_IF;
 
         SaveFailed := FALSE;
-        SaveErrorID := 0;
         WriterPhase := 1;
 END_IF;
 
@@ -748,11 +827,6 @@ IF (WriterPhase = 1) AND (SavePar16.Done OR SavePar32.Done) THEN
         WriterPhase := 2;
 ELSIF (WriterPhase = 1) AND (SavePar16.Error OR SavePar32.Error) THEN
         SaveFailed := TRUE;
-        IF SaveIs32 THEN
-                SaveErrorID := SavePar32.ErrorID;
-        ELSE
-                SaveErrorID := SavePar16.ErrorID;
-        END_IF;
         WriterPhase := 2;
 END_IF;
 
@@ -783,6 +857,7 @@ IF WriterReleaseScan THEN
                 SaveOne := FALSE;
         ELSIF ConfigInit >= 13 THEN
                 ConfigInit := 0;
+                ConfigSelect := 0; (*Displayed selector returns to idle after preset is saved*)
         ELSE
                 ConfigInit := ConfigInit + 1;
         END_IF;
@@ -805,14 +880,76 @@ IF KeyRise.7 AND (Page >= 1) THEN
         ClearDisplay := TRUE;
 END_IF;
 
+(*ParameterBox scroll repeat: one immediate step, then a delayed repeat.*)
+ScrollUpEvent := FALSE;
+ScrollDownEvent := FALSE;
+
+IF (Page > 0) AND NOT IsEditing THEN
+        IF _72_Parameterbox_key_state.3 AND NOT _72_Parameterbox_key_state.4 THEN
+                IF KeyRise.3 THEN
+                        ScrollUpEvent := TRUE;
+                END_IF;
+
+                IF ScrollDirection <> -1 THEN
+                        ScrollDirection := -1;
+                        ScrollRepeatActive := FALSE;
+                        ScrollTimer(IN := FALSE, PT := ScrollInitialTime);
+                ELSIF ScrollTimer.Q THEN
+                        ScrollUpEvent := TRUE;
+                        ScrollRepeatActive := TRUE;
+                        ScrollTimer(IN := FALSE, PT := ScrollRepeatTime);
+                ELSIF ScrollRepeatActive THEN
+                        ScrollTimer(IN := TRUE, PT := ScrollRepeatTime);
+                ELSE
+                        ScrollTimer(IN := TRUE, PT := ScrollInitialTime);
+                END_IF;
+
+        ELSIF _72_Parameterbox_key_state.4 AND NOT _72_Parameterbox_key_state.3 THEN
+                IF KeyRise.4 THEN
+                        ScrollDownEvent := TRUE;
+                END_IF;
+
+                IF ScrollDirection <> 1 THEN
+                        ScrollDirection := 1;
+                        ScrollRepeatActive := FALSE;
+                        ScrollTimer(IN := FALSE, PT := ScrollInitialTime);
+                ELSIF ScrollTimer.Q THEN
+                        ScrollDownEvent := TRUE;
+                        ScrollRepeatActive := TRUE;
+                        ScrollTimer(IN := FALSE, PT := ScrollRepeatTime);
+                ELSIF ScrollRepeatActive THEN
+                        ScrollTimer(IN := TRUE, PT := ScrollRepeatTime);
+                ELSE
+                        ScrollTimer(IN := TRUE, PT := ScrollInitialTime);
+                END_IF;
+        ELSE
+                ScrollDirection := 0;
+                ScrollRepeatActive := FALSE;
+                ScrollTimer(IN := FALSE, PT := ScrollInitialTime);
+        END_IF;
+ELSE
+        ScrollDirection := 0;
+        ScrollRepeatActive := FALSE;
+        ScrollTimer(IN := FALSE, PT := ScrollInitialTime);
+END_IF;
+
 (*Common numeric-display inputs*)
 PBoxValue.MODE := BYTE#0;
 PBoxValue.COLUMN := BYTE#12;
 PBoxValue.POINT := BYTE#0;
 PBoxValue.LENGTH := BYTE#6;
 
+(*Each parameter row is drawn left to right: the label string, the live value,
+  a unit or percent sign, then an end character that acts as a scroll bar.
+  The same four entries are repeated on every row.*)
 CASE Page OF
         1: (*RunFreq, ClearFreq, TorqueLimitUp, TorqueLimitDown*)
+                (*
+                        Line 1: Running frequency
+                        Line 2: Frequency used to pull the door up after a jam while closing
+                        Line 3: Torque current limit for faults going up
+                        Line 4: Torque current limit for faults going down
+                *)
                 PBoxText(ENABLE := L1Enabled, CLEAR := ClearDisplay, ROW := 0, COLUMN := 0,
                         TEXT := RunFreqStr);
                 PBoxValue(ENABLE := L1Enabled, ROW := 0,
@@ -851,6 +988,12 @@ CASE Page OF
                 Line4Val := INT_TO_DINT(TorqueLimitDown);
 
         2: (*MaxJams, HomeFreq, FloorDeadZone, TopDeadZone*)
+                (*
+                        Line 1: Maximum number of jams in a cycle before a fault is thrown
+                        Line 2: Frequency used during homing
+                        Line 3: Floor dead zone
+                        Line 4: Ceiling dead zone
+                *)
                 PBoxText(ENABLE := L1Enabled, CLEAR := ClearDisplay, ROW := 0, COLUMN := 0,
                         TEXT := MaxJamsStr);
                 PBoxValue(ENABLE := L1Enabled, ROW := 0,
@@ -887,6 +1030,12 @@ CASE Page OF
                 Line4Val := TopDeadZone;
 
         3: (*HomingTorqueLimit, EndPos, RestTime, JamTime*)
+                (*
+                        Line 1: Torque limit used to mark the reference point during homing
+                        Line 2: End position (ceiling position in millirevolutions)
+                        Line 3: Pause duration when the door reaches the ceiling
+                        Line 4: Time spent off after encountering a jam going up
+                *)
                 PBoxText(ENABLE := L1Enabled, CLEAR := ClearDisplay, ROW := 0, COLUMN := 0,
                         TEXT := HomeTorqueLimitStr);
                 PBoxValue(ENABLE := L1Enabled, ROW := 0,
@@ -921,6 +1070,10 @@ CASE Page OF
                 Line4Val := JamTime;
 
         4: (*Preset selector - single row*)
+                (*
+                        Line 1: Preset selector. Loads the selected preset, or saves the
+                                currently edited values back into it.
+                *)
                 PBoxText(ENABLE := L1Enabled, CLEAR := ClearDisplay, ROW := 0, COLUMN := 0,
                         TEXT := ConfigSelectStr);
                 PBoxValue(ENABLE := L1Enabled, ROW := 0,
@@ -938,8 +1091,10 @@ ELSE
         PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 2, COLUMN := 0, TEXT := RunPageL2);
         PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 3, COLUMN := 0, TEXT := RunPageL0);
 
+        (*Row 3 live position*)
         PBoxValue(ENABLE := TRUE, ROW := 2, COLUMN := 3, POINT := 3, LENGTH := 8,
                 VALUE := _145_Actual_pos);
+        (*Row 3 current state number*)
         PBoxValue(ENABLE := TRUE, ROW := 2, COLUMN := 16, POINT := BYTE#0, LENGTH := 2,
                 VALUE := INT_TO_DINT(State));
 END_CASE;
@@ -977,7 +1132,7 @@ IF Page > 0 THEN
                         ELSE
                                 (*Percent rows: convert back to 0..16384*)
                                 IF ((Page = 1) AND (RowIndex <= 1)) OR ((Page = 2) AND (RowIndex = 1)) THEN
-                                        EditBuffer := MIN(EditBuffer, 100) * DINT#4096 / DINT#25 + DINT#1;
+                                        EditBuffer := EditBuffer * DINT#4096 / DINT#25 + DINT#1;
                                 END_IF;
 
                                 (*16-bit P355 rows must stay within INT range*)
@@ -992,6 +1147,7 @@ IF Page > 0 THEN
                 END_IF;
         END_IF;
 
+        (*User is adjusting the selected parameter*)
         IF IsEditing THEN
                 (*Up has priority when both keys are held*)
                 IF _72_Parameterbox_key_state.3 OR _72_Parameterbox_key_state.4 THEN
@@ -1018,6 +1174,7 @@ IF Page > 0 THEN
                                 END_IF;
                         END_IF;
 
+                        (*Grow the increment the longer the key is held, so long presses move faster*)
                         IF IncLvl MOD 5 = 0 THEN
                                 IncLvl := IncLvl * IncLvl * IncLvl + 5;
                         END_IF;
@@ -1025,6 +1182,11 @@ IF Page > 0 THEN
                         IncTimer(IN := FALSE);
                         Inc := 0;
                         IncLvl := 1;
+                END_IF;
+
+                (*Clamp the three percentage edit rows; decrement logic already prevents negatives.*)
+                IF ((Page = 1) AND (RowIndex <= 1)) OR ((Page = 2) AND (RowIndex = 1)) THEN
+                        EditBuffer := MIN(EditBuffer, DINT#100);
                 END_IF;
 
                 (*Edited value*)
@@ -1055,29 +1217,29 @@ IF Page > 0 THEN
                         END_CASE;
                 END_IF;
         ELSE
-                (*Scrolling. Page 4 has one row only*)
+                (*Scrolling. Page 4 has one selectable row only; no wrap at either end.*)
                 CASE RowIndex OF
                         0:
-                                IF KeyRise.3 AND (Page > 1) THEN
+                                IF ScrollUpEvent AND (Page > 1) THEN
                                         RowIndex := 3;
                                         Page := Page - 1;
                                         ClearDisplay := TRUE;
                                 END_IF;
-                                IF KeyRise.4 AND (Page < 4) THEN
+                                IF ScrollDownEvent AND (Page < 4) THEN
                                         RowIndex := 1;
                                 END_IF;
                         1, 2:
-                                IF KeyRise.3 THEN
+                                IF ScrollUpEvent THEN
                                         RowIndex := RowIndex - 1;
                                 END_IF;
-                                IF KeyRise.4 THEN
+                                IF ScrollDownEvent THEN
                                         RowIndex := RowIndex + 1;
                                 END_IF;
                         3:
-                                IF KeyRise.3 THEN
+                                IF ScrollUpEvent THEN
                                         RowIndex := 2;
                                 END_IF;
-                                IF KeyRise.4 AND (Page < 4) THEN
+                                IF ScrollDownEvent AND (Page < 4) THEN
                                         RowIndex := 0;
                                         Page := Page + 1;
                                         ClearDisplay := TRUE;
@@ -1300,4 +1462,4 @@ IF FB_Power.Status THEN
                 MODE := 16
         );
 END_IF;
-]]></Program><Checksum>F4BE189AB9210EA9CD801973425B16B202BA5112AE9651610F586807</Checksum></PLCFile></NordCon>
+]]></Program><Checksum>F2E2BA53078300948EE5DA6D89710A867117E6533E82F5BFFCB6DF90</Checksum></PLCFile></NordCon>

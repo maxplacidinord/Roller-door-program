@@ -7,6 +7,16 @@ The program controls the automatic opening and closing of a roller door and incl
 > [!IMPORTANT]
 > This project is intended for demonstration, development, and training purposes. It is not a safety-rated door controller and must not be used as the sole means of protecting people or equipment.
 
+## Drive compatibility
+
+The reference program runs on an **SK 5xxP** drive. `Roller Door - 200E.nstx` is the port to
+the **SK 200E (NORDAC FLEX)**: the control logic is unchanged, but the marker-1 reference
+pulse used by autohoming, the `MC_Home` mode and the digital-input map follow the SK 2xxE.
+The port runs on a **default SK 2xxE** (`DIN1`…`DIN4`). A standard device has no `DIN5`/`DIN6`,
+and `DIN2`/`DIN3` belong to the HTL encoder, so only `DIN1` (open command) and `DIN4` (limit
+sensor) carry signals — the close command comes from the PAR-5 only (see the input table
+below). See `AGENTS.md` for the exact differences.
+
 ## Project information
 
 | Item | Value |
@@ -64,12 +74,22 @@ The movement command is issued through `FB_MoveAbs`, while drive power is contro
 
 The program uses the following input assignments:
 
-| Input | Function |
-|---|---|
-| `DI1` | Open command |
-| `DI2` | Forced close command; also used as a manual reference command during homing |
-| `DI5` | Upper travel sensor in the current code |
-| `DI6` | Lower travel sensor and lower reference during homing |
+| Signal | SK 5xxP | SK 200E (port) | Bit | Function |
+|---|---|---|---|---|
+| Open command | `DI1` | `DIN1` | `0` | Moves the door towards `EndPos` |
+| Close command | `DI2` | *(none — PAR-5 only)* | — | Forced close command; also used as a manual reference command during homing |
+| Limit sensor | `DI5` / `DI6` | `DIN4` | `3` | Travel limit sensor; shuts the drive down on overrun |
+
+A default SK 200E only has `DIN1`…`DIN4`, and `DIN2`/`DIN3` belong to the HTL encoder, so
+just `DIN1` and `DIN4` are free. The port therefore uses `DIN1` for the open command and
+`DIN4` for one limit sensor that stops the drive (E023 overrun flag) when it is triggered
+while the door is running. That sensor also provides the homing reference in both
+directions, because the sensor is only read during homing and the direction of travel
+identifies which end has been reached: a rising edge while homing upwards is the upper
+reference, while homing downwards it is the lower one.
+
+There is no spare input left for the close command, so it is issued from the PAR-5 down key
+(as in the original) or by the automatic top-dwell timer.
 
 PAR-5 commands provide equivalent manual control:
 
@@ -83,7 +103,7 @@ PAR-5 commands provide equivalent manual control:
 | ON + OK | Initiate homing while the drive is stopped |
 
 > [!NOTE]
-> The source header also refers to `DI5` as a test jam signal. The executable code uses `DI5` as the upper travel sensor, so the physical input mapping should be verified before testing.
+> The source header also refers to `DI5` as a test jam signal, while the executable code used `DI5` as the upper travel sensor. In the SK 200E port a single limit sensor on `DIN4` is read for both directions, and homing uses the direction of travel to tell them apart.
 
 ## Parameter configuration
 
@@ -93,10 +113,19 @@ The program writes the following parameters during initialisation:
 
 | Parameter | Value | Purpose |
 |---|---:|---|
-| `P480[09]` | `23` | Assigns the reference-point function |
-| `P481[09]` | `40` | Assigns the PLC-controlled digital output function |
+| `P480[-09]` | `23` | Marker 1 action: reference point (reached) |
+| `P481[-09]` | `40` | Marker 1 trigger: output via PLC (SK 5xxP) |
+| `P481[-07]` | `40` | Marker 1 trigger: output via PLC (SK 200E port) |
+| `P600` | `2` | POSICON position-control variant |
+| `P553[-01..-03]` | `1`, `21`, `22` | Motion-control setpoint routing |
 
-The Structured Text parameter function blocks use zero-based indexes, so `[09]` is passed to the function block as index `8`.
+The Structured Text parameter function blocks use zero-based array indexes, so `[-09]` is
+passed to the function block as index `8` and `[-07]` as index `6`. On the SK 500P these
+parameters set up the marker-1 reference-point pulse used by homing: the PLC raises marker 1
+through `_39_PLC_set_digital_output_bus.8`, and `P480[-09] = 23` makes the drive treat that
+as "reference point reached". On the SK 200E the same pulse is raised through
+`_0_Set_digital_output.7` (marker 1 = BusIO Out Bit 6) and the trigger parameter moves to
+`P481[-07]`.
 
 ### Adjustable parameters: P355
 
@@ -188,10 +217,10 @@ The homing sequence performs the following operations:
 
 1. Enables drive power.
 2. Moves in the positive direction.
-3. Detects the upper endpoint from a positive torque-current threshold or a manual PAR-5 reference command.
+3. Detects the upper endpoint from the limit sensor, a positive torque-current threshold or a manual PAR-5 reference command.
 4. Records the current position as the temporary upper endpoint.
 5. Moves in the negative direction.
-6. Detects the lower endpoint using `DI6`, a negative torque-current threshold, or a manual PAR-5 reference command.
+6. Detects the lower endpoint from the limit sensor, a negative torque-current threshold, or a manual PAR-5 reference command.
 7. Calculates the usable travel from the difference between the two measured positions.
 8. Sets `StartPos` to zero.
 9. Writes the measured `EndPos` to `P356[02]`.

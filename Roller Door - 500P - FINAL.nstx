@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="15.10.2026 11:51:33"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="15.10.2026 12:41:24"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 15/10/2026 11:51:33
-  DATA = 0001FF15023E1CEA1A0A0F0B1814DDF800001A00000000000000000000000000
+  DATE = 15/10/2026 12:41:24
+  DATA = 0001FF15023E1CEA1A0A0F0C2911DDF800001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
   PLCTYPE = 42
@@ -571,9 +571,9 @@ AND NOT IsHoming AND Power THEN
                 MoveExecute := FALSE;
                 JamCount := JamCount + 1;
                 IF State = 1 THEN
-                        State := 5;
+                        State := 5; (*Clear jam after going up*)
                 ELSE
-                        State := 6;
+                        State := 6; (*Clear jam after clearing a jam while going up*)
                 END_IF;
 
         (*Jamming when closing*)
@@ -582,7 +582,7 @@ AND NOT IsHoming AND Power THEN
                 SetFreq := ClearFreq;
                 MoveExecute := FALSE;
                 Power := FALSE;
-                State := 4;
+                State := 4; (*Clear jam after going down*)
         END_IF;
 END_IF;
 
@@ -939,8 +939,17 @@ PBoxValue.COLUMN := BYTE#12;
 PBoxValue.POINT := BYTE#0;
 PBoxValue.LENGTH := BYTE#6;
 
+(*Each parameter row is drawn left to right: the label string, the live value,
+  a unit or percent sign, then an end character that acts as a scroll bar.
+  The same four entries are repeated on every row.*)
 CASE Page OF
         1: (*RunFreq, ClearFreq, TorqueLimitUp, TorqueLimitDown*)
+                (*
+                        Line 1: Running frequency
+                        Line 2: Frequency used to pull the door up after a jam while closing
+                        Line 3: Torque current limit for faults going up
+                        Line 4: Torque current limit for faults going down
+                *)
                 PBoxText(ENABLE := L1Enabled, CLEAR := ClearDisplay, ROW := 0, COLUMN := 0,
                         TEXT := RunFreqStr);
                 PBoxValue(ENABLE := L1Enabled, ROW := 0,
@@ -979,6 +988,12 @@ CASE Page OF
                 Line4Val := INT_TO_DINT(TorqueLimitDown);
 
         2: (*MaxJams, HomeFreq, FloorDeadZone, TopDeadZone*)
+                (*
+                        Line 1: Maximum number of jams in a cycle before a fault is thrown
+                        Line 2: Frequency used during homing
+                        Line 3: Floor dead zone
+                        Line 4: Ceiling dead zone
+                *)
                 PBoxText(ENABLE := L1Enabled, CLEAR := ClearDisplay, ROW := 0, COLUMN := 0,
                         TEXT := MaxJamsStr);
                 PBoxValue(ENABLE := L1Enabled, ROW := 0,
@@ -1015,6 +1030,12 @@ CASE Page OF
                 Line4Val := TopDeadZone;
 
         3: (*HomingTorqueLimit, EndPos, RestTime, JamTime*)
+                (*
+                        Line 1: Torque limit used to mark the reference point during homing
+                        Line 2: End position (ceiling position in millirevolutions)
+                        Line 3: Pause duration when the door reaches the ceiling
+                        Line 4: Time spent off after encountering a jam going up
+                *)
                 PBoxText(ENABLE := L1Enabled, CLEAR := ClearDisplay, ROW := 0, COLUMN := 0,
                         TEXT := HomeTorqueLimitStr);
                 PBoxValue(ENABLE := L1Enabled, ROW := 0,
@@ -1049,6 +1070,10 @@ CASE Page OF
                 Line4Val := JamTime;
 
         4: (*Preset selector - single row*)
+                (*
+                        Line 1: Preset selector. Loads the selected preset, or saves the
+                                currently edited values back into it.
+                *)
                 PBoxText(ENABLE := L1Enabled, CLEAR := ClearDisplay, ROW := 0, COLUMN := 0,
                         TEXT := ConfigSelectStr);
                 PBoxValue(ENABLE := L1Enabled, ROW := 0,
@@ -1066,8 +1091,10 @@ ELSE
         PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 2, COLUMN := 0, TEXT := RunPageL2);
         PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 3, COLUMN := 0, TEXT := RunPageL0);
 
+        (*Row 3 live position*)
         PBoxValue(ENABLE := TRUE, ROW := 2, COLUMN := 3, POINT := 3, LENGTH := 8,
                 VALUE := _145_Actual_pos);
+        (*Row 3 current state number*)
         PBoxValue(ENABLE := TRUE, ROW := 2, COLUMN := 16, POINT := BYTE#0, LENGTH := 2,
                 VALUE := INT_TO_DINT(State));
 END_CASE;
@@ -1120,6 +1147,7 @@ IF Page > 0 THEN
                 END_IF;
         END_IF;
 
+        (*User is adjusting the selected parameter*)
         IF IsEditing THEN
                 (*Up has priority when both keys are held*)
                 IF _72_Parameterbox_key_state.3 OR _72_Parameterbox_key_state.4 THEN
@@ -1146,6 +1174,7 @@ IF Page > 0 THEN
                                 END_IF;
                         END_IF;
 
+                        (*Grow the increment the longer the key is held, so long presses move faster*)
                         IF IncLvl MOD 5 = 0 THEN
                                 IncLvl := IncLvl * IncLvl * IncLvl + 5;
                         END_IF;
@@ -1433,4 +1462,4 @@ IF FB_Power.Status THEN
                 MODE := 16
         );
 END_IF;
-]]></Program><Checksum>F65C9A2882A419CFA5B48FD8BCCC673E10ED00DBB256C62267C1F697</Checksum></PLCFile></NordCon>
+]]></Program><Checksum>F2E2BA53078300948EE5DA6D89710A867117E6533E82F5BFFCB6DF90</Checksum></PLCFile></NordCon>
