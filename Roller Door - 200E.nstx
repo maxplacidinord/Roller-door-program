@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="15.10.2026 12:41:24"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="15.10.2026 14:43:00"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 15/10/2026 12:41:24
-  DATA = 0001FF15023E1CEA1A0A0F0C2911DDF800001A00000000000000000000000000
+  DATE = 15/10/2026 14:43:00
+  DATA = 0001FF15023E1CB91A0A0F0E281EC3D300001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
   PLCTYPE = 42
@@ -508,11 +508,12 @@ logic is carried over. The platform differences handled were:
             offers BOOL/BYTE/INT/DINT/STRING (BU 0550 4.2.6.1), although the manual
             lists the process value as UINT.
 
-2. MC_HOME MODE.
-   The SK 5xxP has an extra MC_Home variant with a BYTE MODE (MODE 16 = P623 = 16).
-   The SK 2xxE only has the standard MC_Home, whose MODE input is a BOOL, so
-   MODE := FALSE. The marker pulse lasts one scan, so the reference position is
-   applied on the following scan. Confirm the reversal behaviour during commissioning.
+2. MC_HOME MODE - value changed.
+   SK 5xxP: MODE := 16 (P623 = 16).
+   SK 2xxE: the MODE input is numeric and the FB does not accept the BOOL FALSE, so
+   MODE := 0 is passed (no averaging method). The manual quotes a value range of
+   1 ... 34 (P623), so check the reference point reversal during commissioning and set
+   P623 in the drive if a particular method is needed.
 
 3. DIGITAL INPUTS - a default SK 2xxE only has DIN1...DIN4.
             open command = bit 0 = DIN1
@@ -1501,7 +1502,7 @@ IF FB_Power.Status THEN
         FB_Home(EXECUTE := IsHoming,
                 POSITION := 0,
                 VELOCITY := HomeFreq,
-                MODE := FALSE  (*SK 2xxE: standard MC_Home, BOOL MODE - SK 5xxP byte MODE 16 not available*)
+                MODE := 0  (*SK 2xxE: MODE input is numeric - 0, not the BOOL FALSE*)
         );
 END_IF;
-]]></Program><Checksum>F2E2BA53078300948EE5DA6D89710A867117E6533E82F5BFFCB6DF90</Checksum></PLCFile></NordCon>
+]]></Program><Checksum/></PLCFile></NordCon>

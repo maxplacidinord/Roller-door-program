@@ -103,7 +103,7 @@ POSICON).
 |---|---|---|---|
 | 1 | Marker 1 pulse (autohoming) | `_39_PLC_set_digital_output_bus.8` | `_0_Set_digital_output.7` (BusIO Out Bit 6 = marker 1) |
 | 1 | Marker 1 parameters | `P480[-09]=23`, `P481[-09]=40` | `P480[-09]=23`, `P481[-07]=40` |
-| 2 | `MC_Home` | byte `MODE` (16 = P623 = 16) | standard FB, `MODE := FALSE` (BOOL) |
+| 2 | `MC_Home` | `MODE := 16` (byte, P623 = 16) | `MODE := 0` (byte - the FB rejects the BOOL literal) |
 | 3 | Close command | `_5_State_digital_input`.1 (DIN2) | **removed** - DIN2/DIN3 are the HTL encoder, so close is PAR-5 only |
 | 4 | Limit sensor | `_5_State_digital_input`.4/.5 (DIN5/DIN6) | `.3` (DIN4) for **both** - a default SK 2xxE has no DIN5/DIN6 |
 
@@ -126,10 +126,12 @@ POSICON).
   §4.5 process-value table lists the type as UINT.
 - `P480[-09]` (marker 1 action) is `23` = reference point, unchanged. Only the P481
   trigger moves array: marker 1 is `[-07]` on the SK 2xxE, `[-09]` on the SK 5xxP.
-- The byte-`MODE` `MC_Home` (BU 0550 §4.3.3.4) is SK 5xxP/31xP/35xP/38xP-FDS only. The
-  SK 2xxE uses the standard `MC_Home` (§4.3.3.3), whose `MODE` is a BOOL. The marker pulse
-  lasts one scan, so the reference position is applied on the following scan - confirm the
-  reversal behaviour during commissioning.
+- `MC_Home` keeps its original call, only the `MODE` value changed: `16` (P623 = 16) became
+  `0`. BU 0550 §4.3.3.3 lists the SK 2xxE with the standard `MC_Home`, but the FB in NORDCON
+  takes a numeric `MODE` there as well and rejects the BOOL literal `FALSE` with "Bool cannot
+  be converted to byte" - `0` compiles. The documented `MODE` range is 1…34 (P623), so with
+  `MODE := 0` the method comes from the drive's `P623`; check the reference point reversal
+  during commissioning.
 - Every other function block used (`MC_Power`, `MC_MoveAbsolute`, `MC_Reset`,
   `MC_WriteParameter_16/32`, `FB_ResetPosition`, `FB_STRINGToPBOX`, `FB_DINTToPBOX`) and
   every other process value used is supported in the 2xxE column of the BU 0550 §4.3

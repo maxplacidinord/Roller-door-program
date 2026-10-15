@@ -11,7 +11,7 @@ The program controls the automatic opening and closing of a roller door and incl
 
 The reference program runs on an **SK 5xxP** drive. `Roller Door - 200E.nstx` is the port to
 the **SK 200E (NORDAC FLEX)**: the control logic is unchanged, but the marker-1 reference
-pulse used by autohoming, the `MC_Home` mode and the digital-input map follow the SK 2xxE.
+pulse used by autohoming, the `MC_Home` mode value and the digital-input map follow the SK 2xxE.
 The port runs on a **default SK 2xxE** (`DIN1`…`DIN4`). A standard device has no `DIN5`/`DIN6`,
 and `DIN2`/`DIN3` belong to the HTL encoder, so only `DIN1` (open command) and `DIN4` (limit
 sensor) carry signals — the close command comes from the PAR-5 only (see the input table
