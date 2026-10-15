@@ -121,7 +121,9 @@ POSICON).
 - `_39_PLC_set_digital_output_bus` does **not** exist on the SK 2xxE (BU 0550 §4.5). On the
   SK 2xxE `_0_Set_digital_output` bits 1..8 map to BusIO Out Bit 0..7, and marker 1 is
   BusIO Out Bit 6 (BU 0200 P481), so the marker is written with bit 7. Autohoming is
-  therefore carried over, not dropped.
+  therefore carried over, not dropped. It is declared as `INT`, not `UINT`: the NORDCON
+  variable list only offers BOOL/BYTE/INT/DINT/STRING (BU 0550 §4.2.6.1), even though the
+  §4.5 process-value table lists the type as UINT.
 - `P480[-09]` (marker 1 action) is `23` = reference point, unchanged. Only the P481
   trigger moves array: marker 1 is `[-07]` on the SK 2xxE, `[-09]` on the SK 5xxP.
 - The byte-`MODE` `MC_Home` (BU 0550 §4.3.3.4) is SK 5xxP/31xP/35xP/38xP-FDS only. The
