@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="16.10.2026 12:25:31"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="16.10.2026 15:11:27"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 16/10/2026 12:25:31
-  DATA = 0001FF15023E1C781A0A100C0A24FFB800001A00000000000000000000000000
+  DATE = 16/10/2026 15:11:27
+  DATA = 0001FF1502561C271A0A100E3526D33800001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
   PLCTYPE = 42
@@ -675,18 +675,18 @@ IF ConfigInit = 20 THEN
                   door:  -     1 Test configuration | 2 Door 2 | 3 Door 3 | 4 Door 4 | 5 Door 5
                   Replace the slot of a door to give that door its own value; the save
                   sequencer picks the set up via ConfigInit := 1.*)
-                RunFreq := MUX(ConfigSelect, 0, 2000, 2000, 2000, 2000, 2000);
-                ClearFreq := MUX(ConfigSelect, 0, 3500, 3500, 3500, 3500, 3500);
-                TorqueLimitUp := MUX(ConfigSelect, 0, 2, 2, 2, 2, 2);
-                TorqueLimitDown := MUX(ConfigSelect, 0, 2, 2, 2, 2, 2);
-                MaxJams := MUX(ConfigSelect, 0, 5, 5, 5, 5, 5);
-                HomeFreq := MUX(ConfigSelect, 0, 2000, 2000, 2000, 2000, 2000);
-                FloorDeadZone := INT_TO_DINT(MUX(ConfigSelect, 0, 100, 100, 100, 100, 100));
-                TopDeadZone := INT_TO_DINT(MUX(ConfigSelect, 0, 100, 100, 100, 100, 100));
-                HomingTorqueLimit := MUX(ConfigSelect, 0, 2, 2, 2, 2, 2);
-                EndPos := INT_TO_DINT(MUX(ConfigSelect, 0, 10000, 10000, 10000, 10000, 10000));
-                RestTime := INT_TO_DINT(MUX(ConfigSelect, 0, 2000, 2000, 2000, 2000, 2000));
-                JamTime := INT_TO_DINT(MUX(ConfigSelect, 0, 2000, 2000, 2000, 2000, 2000));
+                RunFreq :=                          MUX(ConfigSelect, 0,  2000,  2000,  2000,  2000,  2000);
+                ClearFreq :=                        MUX(ConfigSelect, 0,  3500,  3500,  3500,  3500,  3500);
+                TorqueLimitUp :=                    MUX(ConfigSelect, 0,     2,     2,     2,     2,     2);
+                TorqueLimitDown :=                  MUX(ConfigSelect, 0,     2,     2,     2,     2,     2);
+                MaxJams :=                          MUX(ConfigSelect, 0,     5,     5,     5,     5,     5);
+                HomeFreq :=                         MUX(ConfigSelect, 0,  2000,  2000,  2000,  2000,  2000);
+                FloorDeadZone :=        INT_TO_DINT(MUX(ConfigSelect, 0,   100,   100,   100,   100,   100));
+                TopDeadZone :=          INT_TO_DINT(MUX(ConfigSelect, 0,   100,   100,   100,   100,   100));
+                HomingTorqueLimit :=                MUX(ConfigSelect, 0,     2,     2,     2,     2,     2);
+                EndPos :=               INT_TO_DINT(MUX(ConfigSelect, 0, 10000, 10000, 10000, 10000, 10000));
+                RestTime :=             INT_TO_DINT(MUX(ConfigSelect, 0,  2000,  2000,  2000,  2000,  2000));
+                JamTime :=              INT_TO_DINT(MUX(ConfigSelect, 0,  2000,  2000,  2000,  2000,  2000));
 
                 SaveOne := FALSE;
                 ConfigInit := 1;
@@ -1008,6 +1008,15 @@ CASE Page OF
                         TEXT := ConfigSelectStr);
                 PBoxValue(ENABLE := L1Enabled, ROW := 0,
                         VALUE := INT_TO_DINT(ConfigSelect));
+                
+                PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 0, COLUMN := 19,
+                        TEXT := UpArrowChar);        
+                PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 1, COLUMN := 19,
+                        TEXT := MidChar);
+                PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 2, COLUMN := 19,
+                        TEXT := MidChar);
+                PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 3, COLUMN := 19,
+                        TEXT := EndChar);
 
 
                 Line1Val := INT_TO_DINT(ConfigSelect);
@@ -1054,9 +1063,12 @@ IF Page > 0 THEN
                                         ConfigInit := 20;
                                 END_IF;
                         ELSE
-                                (*Percent rows: convert back to 0..16384*)
+                                (*Percent rows: convert back to the raw 0..16384 scale. The display
+                                  floors (raw * 100000 / 16384000), so round up here (+99 before the
+                                  /100): 25 % -> 4096, 100 % -> 16384 exactly, and every percent
+                                  still shows as the percentage that was edited.*)
                                 IF ((Page = 1) AND (RowIndex <= 1)) OR ((Page = 2) AND (RowIndex = 1)) THEN
-                                        EditBuffer := EditBuffer * DINT#4096 / DINT#25 + DINT#1;
+                                        EditBuffer := (EditBuffer * DINT#16384 + DINT#99) / DINT#100;
                                 END_IF;
 
                                 (*16-bit P355 rows must stay within INT range*)

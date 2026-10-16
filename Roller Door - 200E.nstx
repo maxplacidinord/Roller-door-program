@@ -1064,9 +1064,12 @@ IF Page > 0 THEN
                                         ConfigInit := 20;
                                 END_IF;
                         ELSE
-                                (*Percent rows: convert back to 0..16384*)
+                                (*Percent rows: convert back to the raw 0..16384 scale. The display
+                                  floors (raw * 100000 / 16384000), so round up here (+99 before the
+                                  /100): 25 % -> 4096, 100 % -> 16384 exactly, and every percent
+                                  still shows as the percentage that was edited.*)
                                 IF ((Page = 1) AND (RowIndex <= 1)) OR ((Page = 2) AND (RowIndex = 1)) THEN
-                                        EditBuffer := EditBuffer * DINT#4096 / DINT#25 + DINT#1;
+                                        EditBuffer := (EditBuffer * DINT#16384 + DINT#99) / DINT#100;
                                 END_IF;
 
                                 (*16-bit P355 rows must stay within INT range*)
