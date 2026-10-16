@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="16.10.2026 10:34:27"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="16.10.2026 12:25:31"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 16/10/2026 10:34:27
-  DATA = 0001FF15023E1CE21A0A100A212FB1C500001A00000000000000000000000000
+  DATE = 16/10/2026 12:25:31
+  DATA = 0001FF15023E1C781A0A100C0A24FFB800001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
   PLCTYPE = 42
@@ -202,7 +202,7 @@ VAR CONSTANT
   FlashTime: DINT := 1500;
   ScrollInitialTime: DINT := 1500; (* milliseconds before first repeat *)
   ScrollRepeatTime: DINT := 1000; (* milliseconds between repeated steps *)
-  MaxPreset: DINT := 8;
+  MaxPreset: INT := 5;
 END_VAR
 
 VAR 
@@ -655,7 +655,7 @@ IF ParamInit > 0 THEN
         );
         IF WriteParam.Done OR WriteParam.Error THEN
                 WriteParam(EXECUTE := FALSE);
-                IF ParamInit >= 6 THEN
+                IF ParamInit >= 8 THEN
                         ParamInit := 0;
                 ELSE
                         ParamInit := ParamInit + 1;
@@ -668,96 +668,34 @@ END_IF;
   replace individual values with the commissioned settings for each door.
   Every valid selection starts the same serialized save list: P355[01..10] and P356[02..04].*)
 IF ConfigInit = 20 THEN
-        CASE ConfigSelect OF
-                1: (*Test configuration*)
-                        RunFreq := 2000;
-                        ClearFreq := 3500;
-                        TorqueLimitUp := 2;
-                        TorqueLimitDown := 2;
-                        MaxJams := 5;
-                        HomeFreq := 2000;
-                        FloorDeadZone := 100;
-                        TopDeadZone := 100;
-                        HomingTorqueLimit := 2;
-                        EndPos := 10000;
-                        RestTime := 2000;
-                        JamTime := 2000;
-                        
-                        SaveOne := FALSE;
-                        ConfigInit := 1;
+        IF (ConfigSelect >= 1) AND (ConfigSelect <= 5) THEN
+                (*One MUX call per parameter, one value per door. MUX addresses its first
+                  value with index 0, so slot 0 is unused and ConfigSelect is used as-is:
+                  slot:  0     1      2      3      4      5
+                  door:  -     1 Test configuration | 2 Door 2 | 3 Door 3 | 4 Door 4 | 5 Door 5
+                  Replace the slot of a door to give that door its own value; the save
+                  sequencer picks the set up via ConfigInit := 1.*)
+                RunFreq := MUX(ConfigSelect, 0, 2000, 2000, 2000, 2000, 2000);
+                ClearFreq := MUX(ConfigSelect, 0, 3500, 3500, 3500, 3500, 3500);
+                TorqueLimitUp := MUX(ConfigSelect, 0, 2, 2, 2, 2, 2);
+                TorqueLimitDown := MUX(ConfigSelect, 0, 2, 2, 2, 2, 2);
+                MaxJams := MUX(ConfigSelect, 0, 5, 5, 5, 5, 5);
+                HomeFreq := MUX(ConfigSelect, 0, 2000, 2000, 2000, 2000, 2000);
+                FloorDeadZone := INT_TO_DINT(MUX(ConfigSelect, 0, 100, 100, 100, 100, 100));
+                TopDeadZone := INT_TO_DINT(MUX(ConfigSelect, 0, 100, 100, 100, 100, 100));
+                HomingTorqueLimit := MUX(ConfigSelect, 0, 2, 2, 2, 2, 2);
+                EndPos := INT_TO_DINT(MUX(ConfigSelect, 0, 10000, 10000, 10000, 10000, 10000));
+                RestTime := INT_TO_DINT(MUX(ConfigSelect, 0, 2000, 2000, 2000, 2000, 2000));
+                JamTime := INT_TO_DINT(MUX(ConfigSelect, 0, 2000, 2000, 2000, 2000, 2000));
 
-                2: (*Door 2*)
-                        RunFreq := 2000;
-                        ClearFreq := 3500;
-                        TorqueLimitUp := 2;
-                        TorqueLimitDown := 2;
-                        MaxJams := 5;
-                        HomeFreq := 2000;
-                        FloorDeadZone := 100;
-                        TopDeadZone := 100;
-                        HomingTorqueLimit := 2;
-                        EndPos := 10000;
-                        RestTime := 2000;
-                        JamTime := 2000;
-                        
-                        SaveOne := FALSE;
-                        ConfigInit := 1;
-
-                3: (*Door 3*)
-                        RunFreq := 2000;
-                        ClearFreq := 3500;
-                        TorqueLimitUp := 2;
-                        TorqueLimitDown := 2;
-                        MaxJams := 5;
-                        HomeFreq := 2000;
-                        FloorDeadZone := 100;
-                        TopDeadZone := 100;
-                        HomingTorqueLimit := 2;
-                        EndPos := 10000;
-                        RestTime := 2000;
-                        JamTime := 2000;
-                        SaveOne := FALSE;
-                        ConfigInit := 1;
-
-                4: (*Door 4*)
-                        RunFreq := 2000;
-                        ClearFreq := 3500;
-                        TorqueLimitUp := 2;
-                        TorqueLimitDown := 2;
-                        MaxJams := 5;
-                        HomeFreq := 2000;
-                        FloorDeadZone := 100;
-                        TopDeadZone := 100;
-                        HomingTorqueLimit := 2;
-                        EndPos := 10000;
-                        RestTime := 2000;
-                        JamTime := 2000;
-                        
-                        SaveOne := FALSE;
-                        ConfigInit := 1;
-
-                5: (*Door 5*)
-                        RunFreq := 2000;
-                        ClearFreq := 3500;
-                        TorqueLimitUp := 2;
-                        TorqueLimitDown := 2;
-                        MaxJams := 5;
-                        HomeFreq := 2000;
-                        FloorDeadZone := 100;
-                        TopDeadZone := 100;
-                        HomingTorqueLimit := 2;
-                        EndPos := 10000;
-                        RestTime := 2000;
-                        JamTime := 2000;
-                        
-                        SaveOne := FALSE;
-                        ConfigInit := 1;
-                        
+                SaveOne := FALSE;
+                ConfigInit := 1;
         ELSE
                 (*Invalid selector: do not start a preset write sequence.*)
                 ConfigSelect := 0;
                 ConfigInit := 0;
-        END_CASE;
+        END_IF;
+
 
         IF ConfigInit = 1 THEN
                 TargetPos := EndPos;
@@ -777,21 +715,9 @@ AND (ParamInit = 0) AND NOT WritePos.Busy THEN
         IF SaveOne THEN
                 SaveValue := EditBuffer;
         ELSE
-                CASE ConfigInit OF
-                        1:  SaveValue := INT_TO_DINT(RunFreq);
-                        2:  SaveValue := INT_TO_DINT(ClearFreq);
-                        3:  SaveValue := INT_TO_DINT(TorqueLimitUp);
-                        4:  SaveValue := INT_TO_DINT(TorqueLimitDown);
-                        5:  SaveValue := INT_TO_DINT(MaxJams);
-                        6:  SaveValue := INT_TO_DINT(HomeFreq);
-                        7:  SaveValue := FloorDeadZone;
-                        8:  SaveValue := TopDeadZone;
-                        9:  SaveValue := INT_TO_DINT(HomingTorqueLimit);
-                        10: SaveValue := EndPos;
-                        11: SaveValue := RestTime;
-                        12: SaveValue := JamTime;
-                        13: SaveValue := 0; (*Clear P355[10] LoadConf command*)
-                END_CASE;
+                (*CASE ConfigInit replaced by MUX: the INT parameters are wrapped to DINT so that
+                  the index and every value have the same type. Step 13 clears P355[10] (LoadConf).*)
+                SaveValue := MUX(INT_TO_DINT(ConfigInit - 1), INT_TO_DINT(RunFreq), INT_TO_DINT(ClearFreq), INT_TO_DINT(TorqueLimitUp), INT_TO_DINT(TorqueLimitDown), INT_TO_DINT(MaxJams), INT_TO_DINT(HomeFreq), FloorDeadZone, TopDeadZone, INT_TO_DINT(HomingTorqueLimit), EndPos, RestTime, JamTime, DINT#0);
         END_IF;
 
         IF (ConfigInit <= 9) OR (ConfigInit = 13) THEN
@@ -1112,12 +1038,7 @@ IF Page > 0 THEN
         IF KeyRise.5 AND (ConfigInit = 0) AND (WriterPhase = 0) AND (ParamInit = 0) AND (State <> 0) THEN
                 IF NOT IsEditing THEN
                         IsEditing := TRUE;
-                        CASE RowIndex OF
-                                0: EditBuffer := Line1Val;
-                                1: EditBuffer := Line2Val;
-                                2: EditBuffer := Line3Val;
-                                3: EditBuffer := Line4Val;
-                        END_CASE;
+                        EditBuffer := MUX(INT_TO_DINT(RowIndex), Line1Val, Line2Val, Line3Val, Line4Val);
                 ELSE
                         IsEditing := FALSE;
                         L1Enabled := TRUE;
@@ -1128,7 +1049,7 @@ IF Page > 0 THEN
 
                         IF Page = 4 THEN
                                 (*Preset selector: load and save the selected preset*)
-                                IF (EditBuffer >= 1) AND (EditBuffer <= MaxPreset) THEN
+                                IF (EditBuffer >= 1) AND (EditBuffer <= INT_TO_DINT(MaxPreset)) THEN
                                         ConfigSelect := DINT_TO_INT(EditBuffer);
                                         ConfigInit := 20;
                                 END_IF;
@@ -1199,12 +1120,8 @@ IF Page > 0 THEN
                 (*Flash the parameter name while editing*)
                 FlashTimer(IN := NOT FlashTimer.Q, PT := FlashTime);
                 IF FlashTimer.Q THEN
-                        CASE RowIndex OF
-                                0: CurrentLineEnabled := L1Enabled;
-                                1: CurrentLineEnabled := L2Enabled;
-                                2: CurrentLineEnabled := L3Enabled;
-                                3: CurrentLineEnabled := L4Enabled;
-                        END_CASE;
+                        (*(BOOL row flags via BOOL_TO_BYTE / BYTE_TO_BOOL, index converted to BYTE*)
+                        CurrentLineEnabled := BYTE_TO_BOOL(MUX(INT_TO_BYTE(RowIndex), BOOL_TO_BYTE(L1Enabled), BOOL_TO_BYTE(L2Enabled), BOOL_TO_BYTE(L3Enabled), BOOL_TO_BYTE(L4Enabled)));
 
                         IF CurrentLineEnabled THEN
                                 PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := INT_TO_BYTE(RowIndex), COLUMN := 1,

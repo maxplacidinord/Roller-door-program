@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="15.10.2026 15:33:50"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="16.10.2026 13:11:38"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 15/10/2026 15:33:50
-  DATA = 0001FF15023C1CF61A0A0F0F070C9FBD00000600000000000000000000000000
+  DATE = 16/10/2026 13:11:38
+  DATA = 0001FF1502C818481A0A100D0B14EAE400000600000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
   PLCTYPE = 15
@@ -753,7 +753,7 @@ IF ConfigInit = 20 THEN
 
         (*Per-preset differences: CASE ConfigSelect OF 1: ... 2: ... END_CASE;*)
 
-        IF (ConfigSelect >= 1) AND (ConfigSelect <= MaxPreset) THEN
+        IF (ConfigSelect >= 1) AND (ConfigSelect <= DINT_TO_INT(MaxPreset)) THEN
                 SaveOne := FALSE;
                 ConfigInit := 1;
                 TargetPos := EndPos;
@@ -777,21 +777,9 @@ AND (ParamInit = 0) AND NOT WritePos.Busy THEN
         IF SaveOne THEN
                 SaveValue := EditBuffer;
         ELSE
-                CASE ConfigInit OF
-                        1:  SaveValue := INT_TO_DINT(RunFreq);
-                        2:  SaveValue := INT_TO_DINT(ClearFreq);
-                        3:  SaveValue := INT_TO_DINT(TorqueLimitUp);
-                        4:  SaveValue := INT_TO_DINT(TorqueLimitDown);
-                        5:  SaveValue := INT_TO_DINT(MaxJams);
-                        6:  SaveValue := INT_TO_DINT(HomeFreq);
-                        7:  SaveValue := FloorDeadZone;
-                        8:  SaveValue := TopDeadZone;
-                        9:  SaveValue := INT_TO_DINT(HomingTorqueLimit);
-                        10: SaveValue := EndPos;
-                        11: SaveValue := RestTime;
-                        12: SaveValue := JamTime;
-                        13: SaveValue := 0; (*Clear P355[10] LoadConf command*)
-                END_CASE;
+                (*CASE ConfigInit replaced by MUX: the INT parameters are wrapped to DINT so that
+                  the index and every value have the same type. Step 13 clears P355[10] (LoadConf).*)
+                SaveValue := MUX(INT_TO_DINT(ConfigInit - 1), INT_TO_DINT(RunFreq), INT_TO_DINT(ClearFreq), INT_TO_DINT(TorqueLimitUp), INT_TO_DINT(TorqueLimitDown), INT_TO_DINT(MaxJams), INT_TO_DINT(HomeFreq), FloorDeadZone, TopDeadZone, INT_TO_DINT(HomingTorqueLimit), EndPos, RestTime, JamTime, DINT#0);
         END_IF;
 
         IF (ConfigInit <= 9) OR (ConfigInit = 13) THEN
@@ -1060,12 +1048,7 @@ IF Page > 0 THEN
         IF KeyRise.5 AND (ConfigInit = 0) AND (WriterPhase = 0) AND (ParamInit = 0) AND (State <> 0) THEN
                 IF NOT IsEditing THEN
                         IsEditing := TRUE;
-                        CASE RowIndex OF
-                                0: EditBuffer := Line1Val;
-                                1: EditBuffer := Line2Val;
-                                2: EditBuffer := Line3Val;
-                                3: EditBuffer := Line4Val;
-                        END_CASE;
+                        EditBuffer := MUX(INT_TO_DINT(RowIndex), Line1Val, Line2Val, Line3Val, Line4Val);
                 ELSE
                         IsEditing := FALSE;
                         L1Enabled := TRUE;
@@ -1147,12 +1130,8 @@ IF Page > 0 THEN
                 (*Flash the parameter name while editing*)
                 FlashTimer(IN := NOT FlashTimer.Q, PT := FlashTime);
                 IF FlashTimer.Q THEN
-                        CASE RowIndex OF
-                                0: CurrentLineEnabled := L1Enabled;
-                                1: CurrentLineEnabled := L2Enabled;
-                                2: CurrentLineEnabled := L3Enabled;
-                                3: CurrentLineEnabled := L4Enabled;
-                        END_CASE;
+                        (*(BOOL row flags via BOOL_TO_BYTE / BYTE_TO_BOOL, index converted to BYTE*)
+                        CurrentLineEnabled := BYTE_TO_BOOL(MUX(INT_TO_BYTE(RowIndex), BOOL_TO_BYTE(L1Enabled), BOOL_TO_BYTE(L2Enabled), BOOL_TO_BYTE(L3Enabled), BOOL_TO_BYTE(L4Enabled)));
 
                         IF CurrentLineEnabled THEN
                                 PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := INT_TO_BYTE(RowIndex), COLUMN := 1,
