@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="15.10.2026 16:27:00"/><Program Language="ST"><![CDATA[(* @Header *)
+<NordCon><VersionsInfo System="win" Version="3.0.3"/><PLCFile><VersionsInfo Version="1.0" Date="16.10.2026 10:34:27"/><Program Language="ST"><![CDATA[(* @Header *)
 HEADER
   VERSION = 2
   VENDOR = NORD DRIVESYSTEMS
-  DATE = 15/10/2026 16:27:00
-  DATA = 0001FF15023E1CE21A0A0F101A11B1C500001A00000000000000000000000000
+  DATE = 16/10/2026 10:34:27
+  DATA = 0001FF15023E1CE21A0A100A212FB1C500001A00000000000000000000000000
   PLCDISPLAY = 202020202E2D2D2D2D2D2D2D2D2D2D2E202020203D3D3D3D7C2020204E4F52442020207C3D3D3D3D20202020272D2D2D4F2D2D4F2D2D2D27202020204641494C454420544F20494E495449414C49534520202020
   STMODE = ON
   PLCTYPE = 42
@@ -111,19 +111,19 @@ VAR CONSTANT
   RunPageL0: STRING := ------------------------;
   RunPageL1: STRING := | NORD Roller Door |;
   RunPageL2: STRING := |P:12345678 | S: 3 |;
-  RunFreqStr: STRING := ' RunFreq          %-';
-  ClearFreqStr: STRING := ' ClearFreq        %|';
-  TorqueLimitUpStr: STRING := ' TorqueLimUp       |';
-  TorqueLimitDownStr: STRING := ' TorqueLimDo       v';
-  MaxJamsStr: STRING := ' MaxJams           ^';
-  HomeFreqStr: STRING := ' HomingFreq       %|';
-  FloorDeadZoneStr: STRING := ' FloorDeadZone     |';
-  TopDeadZoneStr: STRING := ' TopDeadZone       v';
-  HomeTorqueLimitStr: STRING := ' HomeTorqueLimit   ^';
-  RestTimeStr: STRING := ' RestTime          |';
-  JamTimeStr: STRING := ' JamTime           v';
-  EndPosStr: STRING := ' EndPos            |';
-  ConfigSelectStr: STRING := ' LoadConf          -';
+  RunFreqStr: STRING := ' RunFreq';
+  ClearFreqStr: STRING := ' ClearFreq';
+  TorqueLimitUpStr: STRING := ' TorqueLimUp';
+  TorqueLimitDownStr: STRING := ' TorqueLimDo';
+  MaxJamsStr: STRING := ' MaxJams';
+  HomeFreqStr: STRING := ' HomingFreq';
+  FloorDeadZoneStr: STRING := ' FloorDeadZone';
+  TopDeadZoneStr: STRING := ' TopDeadZone';
+  HomeTorqueLimitStr: STRING := ' HomeTorqueLimit';
+  RestTimeStr: STRING := ' RestTime';
+  JamTimeStr: STRING := ' JamTime';
+  EndPosStr: STRING := ' EndPos';
+  ConfigSelectStr: STRING := ' LoadConf';
 END_VAR
 
 VAR 
@@ -193,6 +193,11 @@ VAR
 END_VAR
 
 VAR CONSTANT
+  EndChar: STRING := -;
+  MidChar: STRING := |;
+  UpArrowChar: STRING := ^;
+  DownArrowChar: STRING := v;
+  PercentChar: STRING := %;
   IncTime: DINT := 500;
   FlashTime: DINT := 1500;
   ScrollInitialTime: DINT := 1500; (* milliseconds before first repeat *)
@@ -400,6 +405,11 @@ Line2Val=0
 Line3Val=0
 Line4Val=0
 CurrentLineEnabled=0
+EndChar=0
+MidChar=0
+UpArrowChar=0
+DownArrowChar=0
+PercentChar=0
 IncTime=0
 FlashTime=0
 ScrollInitialTime=0
@@ -631,10 +641,10 @@ ELSE
 END_IF;
 
 (*RAM-only drive set-up, once per PLC start (ParamInit init value = 1)
-  Step: 1      2      3     4      5      6      7      8
-  Par:  P420   P420   P480   P481   P600   P553   P553   P553
-  Idx:  [04]   [05]   [09]   [09]   [01]   [01]   [02]   [03]
-  Val:  0      0      23     40     2      1      21     22  *)
+  Step: 1      2      3     4      5      6
+  Par:  P480   P481   P600  P553   P553   P553
+  Idx:  [09]   [09]   [01]  [01]   [02]   [03]
+  Val:  23     40     2     1      21     22  *)
 IF ParamInit > 0 THEN
         WriteParam(
                 EXECUTE := TRUE,
@@ -645,7 +655,7 @@ IF ParamInit > 0 THEN
         );
         IF WriteParam.Done OR WriteParam.Error THEN
                 WriteParam(EXECUTE := FALSE);
-                IF ParamInit >= 8 THEN
+                IF ParamInit >= 6 THEN
                         ParamInit := 0;
                 ELSE
                         ParamInit := ParamInit + 1;
@@ -653,34 +663,104 @@ IF ParamInit > 0 THEN
         END_IF;
 END_IF;
 
-(*Preset loading: the values that all presets share are written first, the
-  selected preset can then override what differs (add per-door values at the end of
-  this block before the save is started). Every valid selection starts the same
-  serialized save list: P355[01..10] and P356[02..04].*)
+(*Preset loading: each selection assigns a complete independent parameter set.
+  The following values are the defaults already present in the supplied draft;
+  replace individual values with the commissioned settings for each door.
+  Every valid selection starts the same serialized save list: P355[01..10] and P356[02..04].*)
 IF ConfigInit = 20 THEN
-        RunFreq := 2000;
-        ClearFreq := 3500;
-        TorqueLimitUp := 2;
-        TorqueLimitDown := 2;
-        MaxJams := 5;
-        HomeFreq := 2000;
-        FloorDeadZone := 100;
-        TopDeadZone := 100;
-        HomingTorqueLimit := 2;
-        EndPos := 10000;
-        RestTime := 2000;
-        JamTime := 2000;
+        CASE ConfigSelect OF
+                1: (*Test configuration*)
+                        RunFreq := 2000;
+                        ClearFreq := 3500;
+                        TorqueLimitUp := 2;
+                        TorqueLimitDown := 2;
+                        MaxJams := 5;
+                        HomeFreq := 2000;
+                        FloorDeadZone := 100;
+                        TopDeadZone := 100;
+                        HomingTorqueLimit := 2;
+                        EndPos := 10000;
+                        RestTime := 2000;
+                        JamTime := 2000;
+                        
+                        SaveOne := FALSE;
+                        ConfigInit := 1;
 
-        (*Per-preset differences: CASE ConfigSelect OF 1: ... 2: ... END_CASE;*)
+                2: (*Door 2*)
+                        RunFreq := 2000;
+                        ClearFreq := 3500;
+                        TorqueLimitUp := 2;
+                        TorqueLimitDown := 2;
+                        MaxJams := 5;
+                        HomeFreq := 2000;
+                        FloorDeadZone := 100;
+                        TopDeadZone := 100;
+                        HomingTorqueLimit := 2;
+                        EndPos := 10000;
+                        RestTime := 2000;
+                        JamTime := 2000;
+                        
+                        SaveOne := FALSE;
+                        ConfigInit := 1;
 
-        IF (ConfigSelect >= 1) AND (ConfigSelect <= MaxPreset) THEN
-                SaveOne := FALSE;
-                ConfigInit := 1;
-                TargetPos := EndPos;
+                3: (*Door 3*)
+                        RunFreq := 2000;
+                        ClearFreq := 3500;
+                        TorqueLimitUp := 2;
+                        TorqueLimitDown := 2;
+                        MaxJams := 5;
+                        HomeFreq := 2000;
+                        FloorDeadZone := 100;
+                        TopDeadZone := 100;
+                        HomingTorqueLimit := 2;
+                        EndPos := 10000;
+                        RestTime := 2000;
+                        JamTime := 2000;
+                        SaveOne := FALSE;
+                        ConfigInit := 1;
+
+                4: (*Door 4*)
+                        RunFreq := 2000;
+                        ClearFreq := 3500;
+                        TorqueLimitUp := 2;
+                        TorqueLimitDown := 2;
+                        MaxJams := 5;
+                        HomeFreq := 2000;
+                        FloorDeadZone := 100;
+                        TopDeadZone := 100;
+                        HomingTorqueLimit := 2;
+                        EndPos := 10000;
+                        RestTime := 2000;
+                        JamTime := 2000;
+                        
+                        SaveOne := FALSE;
+                        ConfigInit := 1;
+
+                5: (*Door 5*)
+                        RunFreq := 2000;
+                        ClearFreq := 3500;
+                        TorqueLimitUp := 2;
+                        TorqueLimitDown := 2;
+                        MaxJams := 5;
+                        HomeFreq := 2000;
+                        FloorDeadZone := 100;
+                        TopDeadZone := 100;
+                        HomingTorqueLimit := 2;
+                        EndPos := 10000;
+                        RestTime := 2000;
+                        JamTime := 2000;
+                        
+                        SaveOne := FALSE;
+                        ConfigInit := 1;
+                        
         ELSE
                 (*Invalid selector: do not start a preset write sequence.*)
                 ConfigSelect := 0;
                 ConfigInit := 0;
+        END_CASE;
+
+        IF ConfigInit = 1 THEN
+                TargetPos := EndPos;
         END_IF;
 END_IF;
 
@@ -863,10 +943,9 @@ PBoxValue.COLUMN := BYTE#12;
 PBoxValue.POINT := BYTE#0;
 PBoxValue.LENGTH := BYTE#6;
 
-(*Each parameter row is drawn with one label call and one value call: the label
-  constant carries the '%' sign (column 18) and the scroll-bar character (column 19)
-  in its padding. The Line*Val values are calculated once per page and are used by
-  the display and by the edit buffer.*)
+(*Each parameter row is drawn left to right: the label string, the live value,
+  a unit or percent sign, then an end character that acts as a scroll bar.
+  The same four entries are repeated on every row.*)
 CASE Page OF
         1: (*RunFreq, ClearFreq, TorqueLimitUp, TorqueLimitDown*)
                 (*
@@ -875,23 +954,42 @@ CASE Page OF
                         Line 3: Torque current limit for faults going up
                         Line 4: Torque current limit for faults going down
                 *)
+                PBoxText(ENABLE := L1Enabled, CLEAR := ClearDisplay, ROW := 0, COLUMN := 0,
+                        TEXT := RunFreqStr);
+                PBoxValue(ENABLE := L1Enabled, ROW := 0,
+                        VALUE := INT_TO_DINT(RunFreq) * 100000 / 16384000);
+                PBoxText(ENABLE := TRUE, CLEAR := ClearDisplay, ROW := 0, COLUMN := 18,
+                        TEXT := PercentChar);
+                PBoxText(ENABLE := TRUE, CLEAR := ClearDisplay, ROW := 0, COLUMN := 19,
+                        TEXT := EndChar);
+
+                PBoxText(ENABLE := L2Enabled, CLEAR := FALSE, ROW := 1, COLUMN := 0,
+                        TEXT := ClearFreqStr);
+                PBoxValue(ENABLE := L2Enabled, ROW := 1,
+                        VALUE := INT_TO_DINT(ClearFreq) * 100000 / 16384000);
+                PBoxText(ENABLE := TRUE, CLEAR := ClearDisplay, ROW := 1, COLUMN := 18,
+                        TEXT := PercentChar);
+                PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 1, COLUMN := 19,
+                        TEXT := MidChar);
+
+                PBoxText(ENABLE := L3Enabled, CLEAR := FALSE, ROW := 2, COLUMN := 0,
+                        TEXT := TorqueLimitUpStr);
+                PBoxValue(ENABLE := L3Enabled, ROW := 2,
+                        VALUE := INT_TO_DINT(TorqueLimitUp));
+                PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 2, COLUMN := 19,
+                        TEXT := MidChar);
+
+                PBoxText(ENABLE := L4Enabled, CLEAR := FALSE, ROW := 3, COLUMN := 0,
+                        TEXT := TorqueLimitDownStr);
+                PBoxValue(ENABLE := L4Enabled, ROW := 3,
+                        VALUE := INT_TO_DINT(TorqueLimitDown));
+                PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 3, COLUMN := 19,
+                        TEXT := DownArrowChar);
+
                 Line1Val := INT_TO_DINT(RunFreq) * 100000 / 16384000;
                 Line2Val := INT_TO_DINT(ClearFreq) * 100000 / 16384000;
                 Line3Val := INT_TO_DINT(TorqueLimitUp);
                 Line4Val := INT_TO_DINT(TorqueLimitDown);
-
-                PBoxText(ENABLE := L1Enabled, CLEAR := ClearDisplay, ROW := 0, COLUMN := 0,
-                        TEXT := RunFreqStr);
-                PBoxValue(ENABLE := L1Enabled, ROW := 0, VALUE := Line1Val);
-                PBoxText(ENABLE := L2Enabled, CLEAR := FALSE, ROW := 1, COLUMN := 0,
-                        TEXT := ClearFreqStr);
-                PBoxValue(ENABLE := L2Enabled, ROW := 1, VALUE := Line2Val);
-                PBoxText(ENABLE := L3Enabled, CLEAR := FALSE, ROW := 2, COLUMN := 0,
-                        TEXT := TorqueLimitUpStr);
-                PBoxValue(ENABLE := L3Enabled, ROW := 2, VALUE := Line3Val);
-                PBoxText(ENABLE := L4Enabled, CLEAR := FALSE, ROW := 3, COLUMN := 0,
-                        TEXT := TorqueLimitDownStr);
-                PBoxValue(ENABLE := L4Enabled, ROW := 3, VALUE := Line4Val);
 
         2: (*MaxJams, HomeFreq, FloorDeadZone, TopDeadZone*)
                 (*
@@ -900,23 +998,40 @@ CASE Page OF
                         Line 3: Floor dead zone
                         Line 4: Ceiling dead zone
                 *)
+                PBoxText(ENABLE := L1Enabled, CLEAR := ClearDisplay, ROW := 0, COLUMN := 0,
+                        TEXT := MaxJamsStr);
+                PBoxValue(ENABLE := L1Enabled, ROW := 0,
+                        VALUE := INT_TO_DINT(MaxJams));
+                PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 0, COLUMN := 19,
+                        TEXT := UpArrowChar);
+
+                PBoxText(ENABLE := L2Enabled, CLEAR := FALSE, ROW := 1, COLUMN := 0,
+                        TEXT := HomeFreqStr);
+                PBoxValue(ENABLE := L2Enabled, ROW := 1,
+                        VALUE := INT_TO_DINT(HomeFreq) * 100000 / 16384000);
+                PBoxText(ENABLE := TRUE, CLEAR := ClearDisplay, ROW := 1, COLUMN := 18,
+                        TEXT := PercentChar);
+                PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 1, COLUMN := 19,
+                        TEXT := MidChar);
+
+                PBoxText(ENABLE := L3Enabled, CLEAR := FALSE, ROW := 2, COLUMN := 0,
+                        TEXT := FloorDeadZoneStr);
+                PBoxValue(ENABLE := L3Enabled, ROW := 2,
+                        VALUE := FloorDeadZone);
+                PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 2, COLUMN := 19,
+                        TEXT := MidChar);
+
+                PBoxText(ENABLE := L4Enabled, CLEAR := FALSE, ROW := 3, COLUMN := 0,
+                        TEXT := TopDeadZoneStr);
+                PBoxValue(ENABLE := L4Enabled, ROW := 3,
+                        VALUE := TopDeadZone);
+                PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 3, COLUMN := 19,
+                        TEXT := DownArrowChar);
+
                 Line1Val := INT_TO_DINT(MaxJams);
                 Line2Val := INT_TO_DINT(HomeFreq) * 100000 / 16384000;
                 Line3Val := FloorDeadZone;
                 Line4Val := TopDeadZone;
-
-                PBoxText(ENABLE := L1Enabled, CLEAR := ClearDisplay, ROW := 0, COLUMN := 0,
-                        TEXT := MaxJamsStr);
-                PBoxValue(ENABLE := L1Enabled, ROW := 0, VALUE := Line1Val);
-                PBoxText(ENABLE := L2Enabled, CLEAR := FALSE, ROW := 1, COLUMN := 0,
-                        TEXT := HomeFreqStr);
-                PBoxValue(ENABLE := L2Enabled, ROW := 1, VALUE := Line2Val);
-                PBoxText(ENABLE := L3Enabled, CLEAR := FALSE, ROW := 2, COLUMN := 0,
-                        TEXT := FloorDeadZoneStr);
-                PBoxValue(ENABLE := L3Enabled, ROW := 2, VALUE := Line3Val);
-                PBoxText(ENABLE := L4Enabled, CLEAR := FALSE, ROW := 3, COLUMN := 0,
-                        TEXT := TopDeadZoneStr);
-                PBoxValue(ENABLE := L4Enabled, ROW := 3, VALUE := Line4Val);
 
         3: (*HomingTorqueLimit, EndPos, RestTime, JamTime*)
                 (*
@@ -925,34 +1040,51 @@ CASE Page OF
                         Line 3: Pause duration when the door reaches the ceiling
                         Line 4: Time spent off after encountering a jam going up
                 *)
+                PBoxText(ENABLE := L1Enabled, CLEAR := ClearDisplay, ROW := 0, COLUMN := 0,
+                        TEXT := HomeTorqueLimitStr);
+                PBoxValue(ENABLE := L1Enabled, ROW := 0,
+                        VALUE := INT_TO_DINT(HomingTorqueLimit));
+                PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 0, COLUMN := 19,
+                        TEXT := UpArrowChar);
+
+                PBoxText(ENABLE := L2Enabled, CLEAR := FALSE, ROW := 1, COLUMN := 0,
+                        TEXT := EndPosStr);
+                PBoxValue(ENABLE := L2Enabled, ROW := 1,
+                        VALUE := EndPos);
+                PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 1, COLUMN := 19,
+                        TEXT := MidChar);
+
+                PBoxText(ENABLE := L3Enabled, CLEAR := FALSE, ROW := 2, COLUMN := 0,
+                        TEXT := RestTimeStr);
+                PBoxValue(ENABLE := L3Enabled, ROW := 2,
+                        VALUE := RestTime);
+                PBoxText(ENABLE := TRUE, CLEAR := FALSE, ROW := 2, COLUMN := 19,
+                        TEXT := MidChar);
+
+                PBoxText(ENABLE := L4Enabled, CLEAR := FALSE, ROW := 3, COLUMN := 0,
+                        TEXT := JamTimeStr);
+                PBoxValue(ENABLE := L4Enabled, ROW := 3,
+                        VALUE := JamTime);
+                PBoxText(ENABLE := TRUE, CLEAR := ClearDisplay, ROW := 3, COLUMN := 19,
+                        TEXT := DownArrowChar);
+
                 Line1Val := INT_TO_DINT(HomingTorqueLimit);
                 Line2Val := EndPos;
                 Line3Val := RestTime;
                 Line4Val := JamTime;
-
-                PBoxText(ENABLE := L1Enabled, CLEAR := ClearDisplay, ROW := 0, COLUMN := 0,
-                        TEXT := HomeTorqueLimitStr);
-                PBoxValue(ENABLE := L1Enabled, ROW := 0, VALUE := Line1Val);
-                PBoxText(ENABLE := L2Enabled, CLEAR := FALSE, ROW := 1, COLUMN := 0,
-                        TEXT := EndPosStr);
-                PBoxValue(ENABLE := L2Enabled, ROW := 1, VALUE := Line2Val);
-                PBoxText(ENABLE := L3Enabled, CLEAR := FALSE, ROW := 2, COLUMN := 0,
-                        TEXT := RestTimeStr);
-                PBoxValue(ENABLE := L3Enabled, ROW := 2, VALUE := Line3Val);
-                PBoxText(ENABLE := L4Enabled, CLEAR := FALSE, ROW := 3, COLUMN := 0,
-                        TEXT := JamTimeStr);
-                PBoxValue(ENABLE := L4Enabled, ROW := 3, VALUE := Line4Val);
 
         4: (*Preset selector - single row*)
                 (*
                         Line 1: Preset selector. Loads the selected preset, or saves the
                                 currently edited values back into it.
                 *)
-                Line1Val := INT_TO_DINT(ConfigSelect);
-
                 PBoxText(ENABLE := L1Enabled, CLEAR := ClearDisplay, ROW := 0, COLUMN := 0,
                         TEXT := ConfigSelectStr);
-                PBoxValue(ENABLE := L1Enabled, ROW := 0, VALUE := Line1Val);
+                PBoxValue(ENABLE := L1Enabled, ROW := 0,
+                        VALUE := INT_TO_DINT(ConfigSelect));
+
+
+                Line1Val := INT_TO_DINT(ConfigSelect);
 ELSE
         IsParBoxOn := TRUE;
 
